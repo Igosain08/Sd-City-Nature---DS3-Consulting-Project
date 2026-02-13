@@ -1,0 +1,17 @@
+# Node
+node_modules/
+frontend/node_modules/
+
+# Python
+__pycache__/
+*.pyc
+
+# Vite
+frontend/node_modules/.vite/
+
+# Environment
+.env
+
+# OS
+.DS_Store
+Thumbs.db
