@@ -7,6 +7,10 @@ interface UseApiReturn<T> {
   refetch: () => void;
 }
 
+const API_BASE = typeof import.meta !== 'undefined' && import.meta.env?.VITE_API_URL
+  ? import.meta.env.VITE_API_URL.replace(/\/$/, '')
+  : 'http://localhost:8000';
+
 /**
  * Custom hook for fetching data from the FastAPI backend
  * @param endpoint - API endpoint path (e.g., "/api/exploratory/observations")
@@ -24,7 +28,7 @@ export function useApi<T>(endpoint: string): UseApiReturn<T> {
       setError(null);
 
       try {
-        const response = await fetch(`http://localhost:8000${endpoint}`);
+        const response = await fetch(`${API_BASE}${endpoint}`);
         
         if (!response.ok) {
           throw new Error(`HTTP error! status: ${response.status}`);

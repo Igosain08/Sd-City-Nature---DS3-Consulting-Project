@@ -7,6 +7,8 @@ interface ChartCardProps {
   loading?: boolean;
   error?: string | null;
   children: ReactNode;
+  /** When true, content wrapper has no min-height (for compact content like KPI strip) */
+  compact?: boolean;
 }
 
 /**
@@ -18,10 +20,11 @@ export function ChartCard({
   loading = false,
   error = null,
   children,
+  compact = false,
 }: ChartCardProps) {
   return (
-    <div className="bg-white rounded-lg shadow-md p-6">
-      <div className="mb-4">
+    <div className={`bg-white rounded-lg shadow-md ${compact ? 'p-4' : 'p-6'}`}>
+      <div className={compact ? 'mb-2' : 'mb-4'}>
         <h3 className="text-xl font-semibold text-gray-800">{title}</h3>
         {subtitle && <p className="text-sm text-gray-600 mt-1">{subtitle}</p>}
       </div>
@@ -35,7 +38,7 @@ export function ChartCard({
         </div>
       )}
 
-      {!loading && !error && <div className="chart-container">{children}</div>}
+      {!loading && !error && <div className={compact ? 'chart-container chart-container--compact' : 'chart-container'}>{children}</div>}
     </div>
   );
 }

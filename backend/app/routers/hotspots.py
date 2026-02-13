@@ -11,15 +11,25 @@ from app.config import HEX_RESOLUTION
 router = APIRouter(prefix="/hotspots", tags=["hotspots"])
 
 
+def _get_hex_gdf_or_none():
+    """Return hex bin GeoDataFrame if h3 is available, else None."""
+    try:
+        gdf = DataLoader.get_cached_data()
+        return hex_bin_observations(gdf, resolution=HEX_RESOLUTION)
+    except RuntimeError:
+        return None
+
+
 @router.get("/hexbins", response_model=List[HexBinResponse])
 async def get_hexbins():
     """
-    Get H3 hexagonal bins with observation density
-    TODO: [Team Member] — Add resolution parameter and filtering options
+    Get H3 hexagonal bins with observation density.
+    Returns [] if h3 is not installed (pip install h3).
     """
-    gdf = DataLoader.get_cached_data()
-    hex_gdf = hex_bin_observations(gdf, resolution=HEX_RESOLUTION)
-    
+    hex_gdf = _get_hex_gdf_or_none()
+    if hex_gdf is None:
+        return []
+
     # Convert to response format
     hexbins = []
     for _, row in hex_gdf.iterrows():
@@ -48,11 +58,13 @@ async def get_hexbins():
 @router.get("/gaps", response_model=List[HexBinResponse])
 async def get_gaps():
     """
-    Get under-sampled gap areas with high biodiversity potential
+    Get under-sampled gap areas with high biodiversity potential.
+    Returns [] if h3 is not installed.
     """
-    gdf = DataLoader.get_cached_data()
-    hex_gdf = hex_bin_observations(gdf, resolution=HEX_RESOLUTION)
-    
+    hex_gdf = _get_hex_gdf_or_none()
+    if hex_gdf is None:
+        return []
+
     gaps_list = identify_gaps(hex_gdf, threshold=5)
     
     # Convert to response format

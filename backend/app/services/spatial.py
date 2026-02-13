@@ -1,11 +1,21 @@
 """
-Geospatial analysis utilities using H3 hexagonal binning
+Geospatial analysis utilities using H3 hexagonal binning.
+H3 is optional; if not installed, hex functions raise RuntimeError.
 """
-import h3
+try:
+    import h3
+except ImportError:
+    h3 = None  # type: ignore[assignment]
+
 import geopandas as gpd
 import pandas as pd
 from typing import List, Dict
 from shapely.geometry import Polygon
+
+H3_REQUIRED_MSG = (
+    "h3 is not installed. Hotspots hex maps require: pip install h3 "
+    "(building from source may need CMake/Ninja)."
+)
 
 
 def hex_bin_observations(gdf: gpd.GeoDataFrame, resolution: int = 7) -> gpd.GeoDataFrame:
@@ -19,6 +29,8 @@ def hex_bin_observations(gdf: gpd.GeoDataFrame, resolution: int = 7) -> gpd.GeoD
     Returns:
         GeoDataFrame with hex bins and aggregated stats
     """
+    if h3 is None:
+        raise RuntimeError(H3_REQUIRED_MSG)
     # Assign H3 hex IDs to each observation
     gdf['hex_id'] = gdf.apply(
         lambda row: h3.latlng_to_cell(row.geometry.y, row.geometry.x, resolution),
