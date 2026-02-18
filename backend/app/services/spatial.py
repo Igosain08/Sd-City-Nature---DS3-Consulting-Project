@@ -48,8 +48,10 @@ def hex_bin_observations(gdf: gpd.GeoDataFrame, resolution: int = 7) -> gpd.GeoD
     
     # Create polygon geometries
     hex_stats['geometry'] = hex_stats['hex_id'].apply(
-        lambda h: Polygon(h3.cell_to_boundary(h, geo_json=True))
-    )
+    lambda h: Polygon(
+    [(lng, lat) for lat, lng in h3.cell_to_boundary(h)]
+)
+)
     
     # Add placeholder fields
     hex_stats['habitat_type'] = 'Mixed'
