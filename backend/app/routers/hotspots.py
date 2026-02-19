@@ -5,7 +5,7 @@ from fastapi import APIRouter
 from typing import List
 from app.models.schemas import HexBinResponse
 from app.services.data_loader import DataLoader
-from app.services.spatial import hex_bin_observations, identify_gaps
+from app.services.spatial import hex_bin_observations
 from app.config import HEX_RESOLUTION
 
 router = APIRouter(prefix="/hotspots", tags=["hotspots"])

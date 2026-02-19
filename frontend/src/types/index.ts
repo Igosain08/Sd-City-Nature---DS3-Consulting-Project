@@ -43,16 +43,43 @@ export interface CityStats {
 }
 
 export interface PriorityZone {
-  zone_id: string;
-  name: string;
+  // Core identifiers
+  zone_id: string;  // Maps to hex_id
+  hex_id?: string;  // Optional alias
+  
+  // Location
   center_lat: number;
   center_lng: number;
-  radius_km: number;
+  
+  // Performance metrics
   priority_score: number;
-  recommended_time: string;
-  target_taxa: string[];
+  priority_category: 'HIGH_PRIORITY' | 'MEDIUM_PRIORITY' | 'LOW_PRIORITY' | 'NO_DATA' | 'INSUFFICIENT_DATA';
+  
+  // Non-CNC baseline
+  non_cnc_observation_count: number;
+  non_cnc_unique_species: number;
+  non_cnc_biodiversity_yield: number;
+  
+  // CNC performance
+  cnc_observation_count: number;
+  cnc_unique_species: number;
+  cnc_biodiversity_yield: number;
+  
+  // Gap analysis
+  mobilization_gap: number;
+  
+  // Recommendations
   rationale: string;
-  geometry: GeoJSON.Polygon;
+  recommended_time?: string;  // Optional, may not always have
+  recommended_actions?: string[];
+  target_taxa?: string[];
+  
+  // Geography
+  geometry: GeoJSON.Geometry;
+  
+  // Legacy fields (optional for backwards compatibility)
+  name?: string;
+  radius_km?: number;
 }
 
 export interface MarkerData {
@@ -80,3 +107,13 @@ export interface TimingWindow {
   unique_species: number;
   efficiency_score: number;
 }
+
+type MapHex = {
+  zone_id: string;
+  center_lat: number;
+  center_lng: number;
+  priority_score: number;
+  geometry: GeoJSON.Geometry;
+  priority_category?: PriorityZone['priority_category'];
+};
+type PriorityZonesBundle = { hexes: MapHex[]; top: PriorityZone[] };

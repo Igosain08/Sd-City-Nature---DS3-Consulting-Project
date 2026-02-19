@@ -35,11 +35,21 @@ export function calculateBiodiversityYield(
 /**
  * Gets color for priority score (0-100)
  */
-export function getPriorityColor(score: number): string {
-  if (score >= 75) return '#dc2626'; // high priority - red
-  if (score >= 50) return '#f97316'; // medium-high - orange
-  if (score >= 25) return '#eab308'; // medium - yellow
-  return '#22c55e'; // low priority - green
+export function getPriorityColor(score: number) {
+  const s = Number.isFinite(score) ? Math.max(0, Math.min(100, score)) : 0;
+
+  // 5 buckets => 6 breakpoints (last is exclusive)
+  const breaks = [0, 20, 40, 60, 80, 101];
+
+  let k = 0;
+  while (k < breaks.length - 1 && s >= breaks[k + 1]) k++; // k = 0..4
+
+  // More contrasty steps (low = very light purple, high = dark magenta)
+  const hueSteps =        [275, 288, 300, 312, 322];
+  const saturationSteps = [40, 55, 70, 82, 92];
+  const lightnessSteps =  [96, 84, 68, 50, 32];
+
+  return `hsl(${hueSteps[k]} ${saturationSteps[k]}% ${lightnessSteps[k]}%)`;
 }
 
 /**
