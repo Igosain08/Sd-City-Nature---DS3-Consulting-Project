@@ -1,0 +1,12 @@
+{
+  "name": "sd-city-nature-challenge",
+  "private": true,
+  "scripts": {
+    "dev": "concurrently -n backend,frontend -c blue,green \"cd backend && .venv/bin/uvicorn app.main:app --reload\" \"cd frontend && npm run dev\"",
+    "dev:frontend": "cd frontend && npm run dev",
+    "dev:backend": "cd backend && .venv/bin/uvicorn app.main:app --reload"
+  },
+  "devDependencies": {
+    "concurrently": "^9.1.0"
+  }
+}

@@ -1,0 +1,31 @@
+city,rank,scientific_name,common_name,count,taxon_group
+San Diego,1,Eriogonum fasciculatum,California Buckwheat,282,Plantae
+San Diego,2,Acmispon glaber,deerweed,272,Plantae
+San Diego,3,Encelia californica,California brittlebush,268,Plantae
+San Diego,4,Marah macrocarpa,Chilicothe,261,Plantae
+San Diego,5,Diplacus puniceus,red bush monkeyflower,234,Plantae
+San Diego,6,Haemorhous mexicanus,House Finch,225,Aves
+San Diego,7,Artemisia californica,California sagebrush,216,Plantae
+San Diego,8,Rhus integrifolia,lemonade berry,208,Plantae
+San Diego,9,Anas platyrhynchos,Mallard,190,Aves
+San Diego,10,Sisyrinchium bellum,western blue-eyed grass,181,Plantae
+San Antonio,1,Calyptocarpus vialis,straggler daisy,953,Plantae
+San Antonio,2,Zephyranthes drummondii,Drummond's rain lily,917,Plantae
+San Antonio,3,Glandularia bipinnatifida,Dakota mock vervain,902,Plantae
+San Antonio,4,Solanum elaeagnifolium,silverleaf nightshade,888,Plantae
+San Antonio,5,Diospyros texana,Texas Persimmon,885,Plantae
+San Antonio,6,Wedelia hispida,Texas creeping-oxeye,831,Plantae
+San Antonio,7,Ratibida columnifera,upright prairie coneflower,779,Plantae
+San Antonio,8,Berberis trifoliolata,Agarita,768,Plantae
+San Antonio,9,Salvia farinacea,Mealy Blue Sage,737,Plantae
+San Antonio,10,Smilax bona-nox,saw greenbrier,736,Plantae
+Los Angeles,1,Sceloporus occidentalis,Western Fence Lizard,262,Reptilia
+Los Angeles,2,Apis mellifera,Western Honey Bee,239,Insecta
+Los Angeles,3,Artemisia californica,California sagebrush,221,Plantae
+Los Angeles,4,Encelia californica,California brittlebush,198,Plantae
+Los Angeles,5,Sciurus niger,Eastern Fox Squirrel,182,Mammalia
+Los Angeles,6,Eriogonum fasciculatum,California Buckwheat,182,Plantae
+Los Angeles,7,Haemorhous mexicanus,House Finch,173,Aves
+Los Angeles,8,Marah macrocarpa,Chilicothe,167,Plantae
+Los Angeles,9,Eschscholzia californica,California poppy,162,Plantae
+Los Angeles,10,Lupinus succulentus,arroyo lupine,162,Plantae

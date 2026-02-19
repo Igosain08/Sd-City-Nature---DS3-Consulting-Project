@@ -1,0 +1,10 @@
+city,year,total_observations,unique_species,total_participants,species_per_observer
+San Diego,2023,20299,2473,1129,2.19
+San Diego,2024,29259,2847,1359,2.09
+San Diego,2025,32343,2850,1301,2.19
+San Antonio,2023,20135,2501,909,2.75
+San Antonio,2024,65090,3701,1418,2.61
+San Antonio,2025,135039,5049,2753,1.83
+Los Angeles,2023,26788,2659,1825,1.46
+Los Angeles,2024,22549,2764,2152,1.28
+Los Angeles,2025,28552,2861,1660,1.72

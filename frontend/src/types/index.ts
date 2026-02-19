@@ -43,6 +43,94 @@ export interface CityStats {
   species_per_observer: number;
 }
 
+/** Per-city spatial data for comparison maps (center + markers). */
+export interface CitySpatial {
+  city: string;
+  center_lat: number;
+  center_lng: number;
+  markers: MarkerData[];
+}
+
+/** Research-grade and quality breakdown by city. */
+export interface CityQuality {
+  city: string;
+  total: number;
+  research_count: number;
+  needs_id_count: number;
+  casual_count: number;
+  research_pct: number;
+}
+
+/** Who contributes the most: mean observations per user by city. */
+export interface CityContributor {
+  city: string;
+  user_count: number;
+  total_observations: number;
+  mean_obs_per_user: number;
+}
+
+/** Captive vs wild by city (only wild counts toward CNC). */
+export interface CityCaptiveWild {
+  city: string;
+  wild_count: number;
+  captive_count: number;
+  wild_pct: number;
+  captive_pct: number;
+}
+
+/** Competition vs non-competition window comparison. */
+export interface CompetitionSplit {
+  window: string; // "competition" | "non_competition"
+  observations: number;
+  unique_species: number;
+  participants: number;
+  research_pct: number;
+  species_per_observation: number;
+}
+
+/** Community ranked by observation volume with biodiversity yield. */
+export interface CommunityRank {
+  community: string;
+  observations: number;
+  unique_species: number;
+  participants: number;
+  species_per_observation: number;
+}
+
+/** Taxon group split by competition window. */
+export interface TaxonComparison {
+  taxon_group: string;
+  competition_count: number;
+  non_competition_count: number;
+  total: number;
+}
+
+/** Top observed species with count and metadata. */
+export interface TopSpeciesComparison {
+  scientific_name: string;
+  common_name: string;
+  count: number;
+  taxon_group: string;
+}
+
+/** Observation count per taxon group across all three cities. */
+export interface CityTaxonItem {
+  taxon_group: string;
+  san_diego: number;
+  san_antonio: number;
+  los_angeles: number;
+}
+
+/** A top species for a specific city. */
+export interface CityTopSpeciesItem {
+  city: string;
+  rank: number;
+  scientific_name: string;
+  common_name: string;
+  count: number;
+  taxon_group: string;
+}
+
 export interface PriorityZone {
   zone_id: string;
   name: string;
