@@ -7,6 +7,23 @@ import geopandas as gpd
 from typing import Optional
 from pathlib import Path
 
+
+def _utc_to_local_hour(series: pd.Series, tz: str = "America/Los_Angeles") -> pd.Series:
+    """
+    Treat naive datetimes as UTC and convert to local time (naive) so .dt.hour is local hour.
+    iNaturalist exports use UTC; San Diego is America/Los_Angeles.
+    """
+    if series.empty or series.isna().all():
+        return series
+    try:
+        return (
+            series.dt.tz_localize("UTC", ambiguous="infer")
+            .dt.tz_convert(tz)
+            .dt.tz_localize(None)
+        )
+    except Exception:
+        return series
+
 # Module-level cache
 _cached_data: Optional[gpd.GeoDataFrame] = None
 
@@ -93,6 +110,7 @@ class DataLoader:
 
             # Observation datetime: use time_observed_at (when observation took place) for hour,
             # not created_at (upload time). Combine observed_on date + time_observed_at time when available.
+            # iNaturalist stores times in UTC; convert to Pacific (America/Los_Angeles) so "hour of day" is local.
             obs_date = pd.to_datetime(df["observed_on"], errors="coerce").dt.normalize()
             df["observed_on"] = obs_date.astype("str")
             if "time_observed_at" in df.columns:
@@ -106,8 +124,10 @@ class DataLoader:
                 )
             else:
                 df["_observed_on_dt"] = obs_date
+            df["_observed_on_dt"] = _utc_to_local_hour(df["_observed_on_dt"], "America/Los_Angeles")
             if "created_at" in df.columns:
                 df["_created_at_dt"] = pd.to_datetime(df["created_at"], errors="coerce")
+                df["_created_at_dt"] = _utc_to_local_hour(df["_created_at_dt"], "America/Los_Angeles")
             df["user_id"] = df["user_id"].astype(str)
 
             # Drop rows missing coordinates

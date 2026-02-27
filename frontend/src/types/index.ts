@@ -27,11 +27,17 @@ export interface HexBin {
   geometry: GeoJSON.Polygon;
 }
 
+export interface SpeciesBreakdownItem {
+  species: string;
+  count: number;
+}
+
 export interface SpeciesSummary {
   taxon_group: string;
   total_species: number;
   total_observations: number;
   top_species: string[];
+  species_breakdown?: SpeciesBreakdownItem[]; // Top 9 + Other for drill-down bar
 }
 
 export interface CityStats {
@@ -73,6 +79,12 @@ export interface TemporalTrend {
   count: number;
   research_count?: number;
   taxon_group?: string;
+}
+
+/** One point on the species accumulation curve (observations in chronological order vs cumulative unique species). */
+export interface SpeciesAccumulationPoint {
+  observation_count: number;
+  unique_species: number;
 }
 
 export interface HourlyByDowItem {
@@ -171,6 +183,7 @@ export interface ExploratoryDashboard {
   quality_grade: QualityGradeItem[];
   captive_wild: CaptiveWild | null;
   by_community: ByCommunityItem[];
+  by_sd_neighborhood?: ByCommunityItem[];
   by_hour: ByHourItem[];
   user_contribution: UserContributionDashboard;
   top_species: TopSpeciesItem[];

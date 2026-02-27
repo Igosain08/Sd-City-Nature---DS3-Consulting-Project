@@ -52,6 +52,8 @@ The backend API will run on `http://localhost:8000`
 
 Place iNaturalist observation CSV exports for San Diego, San Antonio, and Los Angeles in `backend/data/`.
 
+**Timezone:** The backend assumes `observed_on` / `time_observed_at` and `created_at` from iNaturalist are in **UTC**. It converts them to **America/Los_Angeles** (Pacific) so "Observations by hour of day" and related charts use local time. If your CSV is already in local time, the conversion can be disabled in `backend/app/services/data_loader.py`.
+
 ## Team Page Assignments
 
 | Page | Component | Backend Router | Owner |

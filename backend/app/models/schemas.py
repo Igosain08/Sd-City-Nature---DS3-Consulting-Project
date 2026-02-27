@@ -34,12 +34,19 @@ class HexBinResponse(BaseModel):
     geometry: dict  # GeoJSON Polygon
 
 
+class SpeciesBreakdownItem(BaseModel):
+    """Species name and observation count for drill-down bar chart."""
+    species: str
+    count: int
+
+
 class SpeciesSummaryResponse(BaseModel):
     """Taxonomic group summary statistics"""
     taxon_group: str
     total_species: int
     total_observations: int
     top_species: List[str]
+    species_breakdown: Optional[List[SpeciesBreakdownItem]] = None  # Top 9 species + Other
 
 
 class TemporalTrendResponse(BaseModel):
@@ -48,6 +55,12 @@ class TemporalTrendResponse(BaseModel):
     count: int
     research_count: Optional[int] = None
     taxon_group: Optional[str] = None
+
+
+class SpeciesAccumulationPoint(BaseModel):
+    """One point on the species accumulation curve: observations 1..N (chronological) vs cumulative unique species."""
+    observation_count: int
+    unique_species: int
 
 
 class HourlyByDowItem(BaseModel):
@@ -178,6 +191,7 @@ class ExploratoryDashboardResponse(BaseModel):
     quality_grade: List[QualityGradeItem]
     captive_wild: Optional[CaptiveWildResponse] = None
     by_community: List[ByCommunityItem]
+    by_sd_neighborhood: List[ByCommunityItem] = []  # San Diego city neighborhoods (same shape as by_community)
     by_hour: List[ByHourItem]
     user_contribution: UserContributionDashboard
     top_species: List[TopSpeciesItem]

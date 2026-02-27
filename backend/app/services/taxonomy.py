@@ -27,27 +27,27 @@ def summarize_by_taxon(gdf: gpd.GeoDataFrame) -> List[Dict]:
     
     summary.columns = ['taxon_group', 'total_species', 'total_observations']
     
-    # Get top species for each taxon group
+    # Get top species and species breakdown (top 9 + Other) for each taxon group
+    TOP_N_SPECIES = 9
     result = []
     for _, row in summary.iterrows():
         taxon = row['taxon_group']
         taxon_data = gdf[gdf['taxon_group'] == taxon]
-        
-        top_species = (
-            taxon_data['species_name']
-            .value_counts()
-            .head(6)
-            .index
-            .tolist()
-        )
-        
+        total_obs = int(row['total_observations'])
+        species_counts = taxon_data['species_name'].value_counts()
+        top_n = species_counts.head(TOP_N_SPECIES)
+        top_species_names = top_n.index.tolist()
+        top_with_counts = [{'species': str(s), 'count': int(c)} for s, c in top_n.items()]
+        other_count = total_obs - top_n.sum()
+        if other_count > 0:
+            top_with_counts.append({'species': 'Other', 'count': int(other_count)})
         result.append({
             'taxon_group': taxon,
             'total_species': int(row['total_species']),
-            'total_observations': int(row['total_observations']),
-            'top_species': top_species
+            'total_observations': total_obs,
+            'top_species': top_species_names,
+            'species_breakdown': top_with_counts,
         })
-    
     return result
 
 

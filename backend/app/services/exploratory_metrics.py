@@ -6,6 +6,8 @@ import numpy as np
 import pandas as pd
 from typing import List, Dict, Any, Optional
 
+from app.services.sd_neighborhoods import get_by_sd_neighborhood
+
 
 def _safe(col: str, gdf: gpd.GeoDataFrame, default=None):
     return gdf[col] if col in gdf.columns else default
@@ -78,8 +80,8 @@ def get_captive_wild(gdf: gpd.GeoDataFrame) -> Optional[Dict[str, Any]]:
     }
 
 
-def get_by_community(gdf: gpd.GeoDataFrame) -> List[Dict[str, Any]]:
-    """Observations by region/community (e.g. San Diego, Vista, Oceanside)."""
+def get_by_community(gdf: gpd.GeoDataFrame, top_n: int = 10) -> List[Dict[str, Any]]:
+    """Observations by region/community (e.g. San Diego, Chula Vista, Oceanside). Returns top N and folds the rest into 'Other'."""
     col = "city" if "city" in gdf.columns else "community"
     if col not in gdf.columns:
         return []
@@ -88,7 +90,48 @@ def get_by_community(gdf: gpd.GeoDataFrame) -> List[Dict[str, Any]]:
     counts = gdf.groupby(col).agg({"id": "count"}).reset_index()
     counts.columns = ["community", "count"]
     counts["count"] = counts["count"].astype(int)
-    return counts.sort_values("count", ascending=False).to_dict("records")
+    counts = counts.sort_values("count", ascending=False).reset_index(drop=True)
+    if len(counts) <= top_n:
+        return counts.to_dict("records")
+    top = counts.head(top_n)
+    other_count = counts.iloc[top_n:]["count"].sum()
+    other_row = pd.DataFrame([{"community": "Other", "count": int(other_count)}])
+    return pd.concat([top, other_row], ignore_index=True).to_dict("records")
+
+
+def get_species_accumulation_curve(gdf: gpd.GeoDataFrame, max_points: int = 2000) -> List[Dict[str, Any]]:
+    """
+    Cumulative curve: for observations in chronological order, at each step (or sampled steps)
+    report (observation_count, cumulative_unique_species). X-axis = no. of observations (1, 2, ...),
+    Y-axis = no. of unique species seen so far.
+    """
+    if gdf is None or len(gdf) == 0:
+        return []
+    col_species = "species_name" if "species_name" in gdf.columns else None
+    if not col_species:
+        return []
+    # Chronological order: _observed_on_dt then observed_on
+    gdf = gdf.copy()
+    if "_observed_on_dt" in gdf.columns:
+        gdf = gdf.sort_values("_observed_on_dt", na_position="last").reset_index(drop=True)
+    elif "observed_on" in gdf.columns:
+        gdf["_sort_dt"] = pd.to_datetime(gdf["observed_on"], errors="coerce")
+        gdf = gdf.sort_values("_sort_dt", na_position="last").reset_index(drop=True)
+    else:
+        return []
+    species = gdf[col_species].fillna("").astype(str).replace("", "Unknown")
+    n_total = len(gdf)
+    step = max(1, n_total // max_points) if max_points else 1
+    seen: set = set()
+    out: List[Dict[str, Any]] = []
+    for i in range(n_total):
+        s = species.iloc[i]
+        seen.add(s)
+        if i == 0 or i == n_total - 1 or (i + 1) % step == 0:
+            out.append({"observation_count": i + 1, "unique_species": len(seen)})
+    if out and out[-1]["observation_count"] != n_total:
+        out.append({"observation_count": n_total, "unique_species": len(seen)})
+    return out
 
 
 def get_by_hour(gdf: gpd.GeoDataFrame) -> List[Dict[str, Any]]:
@@ -187,18 +230,18 @@ def get_user_contribution_with_pareto(gdf: gpd.GeoDataFrame) -> Dict[str, Any]:
     else:
         research_by_segment = []
 
-    # Pareto curve: cumulative % users (sorted desc by obs) -> cumulative % observations
+    # Pareto curve: cumulative % users (sorted desc by obs) -> cumulative % observations (full curve, no sampling)
     per_user_sorted = per_user.sort_values("obs_count", ascending=False).reset_index(drop=True)
     per_user_sorted["cum_obs"] = per_user_sorted["obs_count"].cumsum()
     per_user_sorted["cum_obs_pct"] = 100 * per_user_sorted["cum_obs"] / total_obs
     per_user_sorted["cum_user_pct"] = 100 * (np.arange(1, len(per_user_sorted) + 1) / n_users)
-    # Sample curve at ~20 points to keep payload small
-    step = max(1, len(per_user_sorted) // 20)
-    curve = per_user_sorted.iloc[::step][["cum_user_pct", "cum_obs_pct"]].rename(
+    curve = per_user_sorted[["cum_user_pct", "cum_obs_pct"]].rename(
         columns={"cum_user_pct": "user_pct", "cum_obs_pct": "obs_pct"}
     )
-    pareto_curve = [{"user_pct": round(float(r["user_pct"]), 1), "obs_pct": round(float(r["obs_pct"]), 1)} for _, r in curve.iterrows()]
-    if len(pareto_curve) and pareto_curve[-1]["user_pct"] < 100:
+    pareto_curve = [{"user_pct": round(float(r["user_pct"]), 2), "obs_pct": round(float(r["obs_pct"]), 2)} for _, r in curve.iterrows()]
+    # Start at origin (0% users → 0% observations) and end at (100, 100)
+    pareto_curve = [{"user_pct": 0.0, "obs_pct": 0.0}] + pareto_curve
+    if len(pareto_curve) > 1 and (pareto_curve[-1]["user_pct"] < 100 or pareto_curve[-1]["obs_pct"] < 100):
         pareto_curve.append({"user_pct": 100.0, "obs_pct": 100.0})
 
     # Pareto summary: top X% contribute 80%
@@ -383,6 +426,7 @@ def get_dashboard(gdf: gpd.GeoDataFrame, taxonomy_summary_fn=None, temporal_tren
         "quality_grade": [],
         "captive_wild": None,
         "by_community": [],
+        "by_sd_neighborhood": [],
         "by_hour": [{"hour": h, "count": 0} for h in range(24)],
         "hourly_by_dow": [],
         "user_contribution": {"buckets": [], "pareto_pct": None, "pareto_label": None, "mean_obs_per_user": None, "median_obs_per_user": None, "mode_obs_per_user": None, "mode_bucket": None, "pareto_curve": [], "research_rate_by_segment": []},
@@ -421,6 +465,11 @@ def get_dashboard(gdf: gpd.GeoDataFrame, taxonomy_summary_fn=None, temporal_tren
     try:
         bc = get_by_community(gdf)
         out["by_community"] = [{"community": str(b["community"]), "count": int(b["count"])} for b in bc]
+    except Exception:
+        pass
+    try:
+        sdn = get_by_sd_neighborhood(gdf)
+        out["by_sd_neighborhood"] = [{"community": str(b["community"]), "count": int(b["count"])} for b in sdn]
     except Exception:
         pass
 

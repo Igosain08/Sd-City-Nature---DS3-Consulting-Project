@@ -5,10 +5,13 @@ import { ObservationMap } from '../components/ObservationMap';
 import { ObservationsOverTime } from '../components/ObservationsOverTime';
 import { TaxonomicBreakdown } from '../components/TaxonomicBreakdown';
 import { UserContributionSection } from '../components/UserContributionSection';
-import { Observation, ExploratoryDashboard } from '../types';
+import { Observation, ExploratoryDashboard, SpeciesAccumulationPoint } from '../types';
+import { isInSDParkOrTrail } from '../data/sdParksAndTrails';
 import {
   BarChart,
   Bar,
+  LineChart,
+  Line,
   XAxis,
   YAxis,
   CartesianGrid,
@@ -44,6 +47,7 @@ export function ExploratoryAnalysis() {
   }, [competitionFilter]);
 
   const [mapFilter, setMapFilter] = useState<MapObservationFilter>('all');
+  const [parksAndTrailsOnly, setParksAndTrailsOnly] = useState(false);
   const [colorBy, setColorBy] = useState<'quality_grade' | 'taxon_group' | 'contributor_tier'>('quality_grade');
   const [dateRange, setDateRange] = useState<[string, string]>([
     '2025-04-25',
@@ -63,6 +67,17 @@ export function ExploratoryAnalysis() {
     `/api/exploratory/dashboard${querySuffix}`
   );
   const { data: observations, loading: loadingObs, error: errorObs } = useApi<Observation[]>(observationsQuery);
+  const { data: speciesAccumulation, loading: loadingAccum, error: errorAccum } = useApi<SpeciesAccumulationPoint[]>(
+    `/api/exploratory/species-accumulation${querySuffix}`
+  );
+
+  const mapObservations = useMemo(() => {
+    const list = observations ?? [];
+    if (!parksAndTrailsOnly || list.length === 0) return list;
+    return list.filter((o) =>
+      isInSDParkOrTrail(Number(o.latitude), Number(o.longitude))
+    );
+  }, [observations, parksAndTrailsOnly]);
 
   const dateExtent = useMemo(() => {
     if (!observations?.length) return null;
@@ -83,10 +98,19 @@ export function ExploratoryAnalysis() {
   const kpis = dashboard?.kpis;
   const qualityGrade = dashboard?.quality_grade ?? [];
   const captiveWild = dashboard?.captive_wild ?? null;
-  const byCommunity = dashboard?.by_community ?? [];
+  const byCommunityRaw = dashboard?.by_community ?? [];
+  const byCommunity = useMemo(() => {
+    if (byCommunityRaw.length <= 10) return byCommunityRaw;
+    const sorted = [...byCommunityRaw].sort((a, b) => (b.count ?? 0) - (a.count ?? 0));
+    const top10 = sorted.slice(0, 10);
+    const otherCount = sorted.slice(10).reduce((sum, r) => sum + (r.count ?? 0), 0);
+    return [...top10, { community: 'Other', count: otherCount }];
+  }, [byCommunityRaw]);
+  const bySdNeighborhood = dashboard?.by_sd_neighborhood ?? [];
+  const [communityViewMode, setCommunityViewMode] = useState<'region' | 'neighborhood'>('region');
+  const communityChartData = communityViewMode === 'neighborhood' ? bySdNeighborhood : byCommunity;
   const byHour = dashboard?.by_hour ?? [];
   const userContrib = dashboard?.user_contribution;
-  const topSpecies = dashboard?.top_species ?? [];
   const uploadDelay = dashboard?.upload_delay ?? null;
   const researchByTaxon = dashboard?.research_rate_by_taxon ?? [];
   const hourlyByDow = dashboard?.hourly_by_dow ?? [];
@@ -195,6 +219,15 @@ export function ExploratoryAnalysis() {
                   ))}
                 </div>
               </div>
+              <label className="flex items-center gap-2 cursor-pointer select-none">
+                <input
+                  type="checkbox"
+                  checked={parksAndTrailsOnly}
+                  onChange={(e) => setParksAndTrailsOnly(e.target.checked)}
+                  className="rounded border-slate-300 text-sky-600 focus:ring-sky-500"
+                />
+                <span className="text-sm font-medium text-slate-700">Parks and Trails</span>
+              </label>
               <div className="flex items-center gap-2">
                 <span className="text-sm font-medium text-slate-700">Color by:</span>
                 <select
@@ -237,15 +270,61 @@ export function ExploratoryAnalysis() {
                 </button>
               </div>
             )}
-            {observations && observations.length > 0 && (
+            {observations && (
               <ObservationMap
-                observations={observations}
+                observations={mapObservations}
                 colorBy={colorBy}
                 dateRange={dateRange}
                 height="600px"
               />
             )}
           </div>
+        </ChartCard>
+      </section>
+
+      {/* Species accumulation curve */}
+      <section>
+        <p className="text-gray-700 mb-4 max-w-3xl">
+          The curve below shows how many unique species have been observed as the number of observations grows in <strong>chronological order</strong>. The x-axis is the number of observations (e.g. 1–1000 is the first thousand observations in time); the y-axis is the cumulative count of distinct species seen so far. It illustrates how quickly biodiversity accumulates and when the rate of new species levels off.
+        </p>
+        <ChartCard
+          title="Species accumulation curve"
+          subtitle="Cumulative unique species vs. number of observations (chronological)"
+          loading={loadingAccum}
+          error={errorAccum}
+        >
+          {speciesAccumulation && speciesAccumulation.length > 0 && (
+            <ResponsiveContainer width="100%" height={400}>
+              <LineChart data={speciesAccumulation} margin={{ top: 16, right: 24, left: 24, bottom: 24 }}>
+                <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
+                <XAxis
+                  dataKey="observation_count"
+                  type="number"
+                  name="Observations"
+                  tickFormatter={(v) => (v >= 1000 ? `${(v / 1000).toFixed(0)}k` : String(v))}
+                  label={{ value: 'Number of observations (chronological)', position: 'insideBottom', offset: -8 }}
+                />
+                <YAxis
+                  dataKey="unique_species"
+                  type="number"
+                  name="Unique species"
+                  label={{ value: 'Cumulative unique species', angle: -90, position: 'insideLeft' }}
+                />
+                <Tooltip
+                  formatter={(value: number) => [value, 'Unique species']}
+                  labelFormatter={(label) => `Observations: ${Number(label).toLocaleString()}`}
+                />
+                <Line
+                  type="monotone"
+                  dataKey="unique_species"
+                  stroke="#0ea5e9"
+                  strokeWidth={2}
+                  dot={false}
+                  name="Unique species"
+                />
+              </LineChart>
+            </ResponsiveContainer>
+          )}
         </ChartCard>
       </section>
 
@@ -345,26 +424,52 @@ export function ExploratoryAnalysis() {
       {/* Observations by community */}
       <section>
         <p className="text-gray-700 mb-4 max-w-3xl">
-          Activity is spread across communities and regions. This chart shows observation counts by
-          community (e.g. San Diego, Vista, Oceanside) — descriptive geography only.
+          {communityViewMode === 'region'
+            ? 'Activity by place name as recorded in the data (e.g. San Diego, Chula Vista, La Jolla). These are the top 10 labels from the dataset; each can be a city or a neighborhood depending on how the observation was tagged. All others are grouped as "Other".'
+            : 'Observations within the City of San Diego, assigned to neighborhoods by map location only (coordinates). So "La Jolla" here means observations whose location falls in that area, regardless of how they were tagged. Areas not matching a defined neighborhood are grouped as "Other".'}
         </p>
         <ChartCard
           title="Observations by region / community"
-          subtitle="Observation count by community"
+          subtitle={communityViewMode === 'region' ? 'Observation count by community' : 'Observation count by San Diego neighborhood'}
           loading={loadingDash}
           error={errorDash}
         >
-          {byCommunity.length > 0 && (
-            <ResponsiveContainer width="100%" height={380}>
-              <BarChart data={byCommunity} margin={{ top: 8, right: 8, left: 8, bottom: 80 }}>
-                <CartesianGrid strokeDasharray="3 3" />
-                <XAxis dataKey="community" angle={-45} textAnchor="end" height={80} interval={0} />
-                <YAxis />
-                <Tooltip />
-                <Bar dataKey="count" fill="#0ea5e9" name="Observations" radius={[4, 4, 0, 0]} />
-              </BarChart>
-            </ResponsiveContainer>
-          )}
+          <div className="space-y-4">
+            <div className="flex flex-wrap items-center gap-3">
+              <span className="text-sm font-medium text-slate-700">View by:</span>
+              <div className="flex rounded-lg overflow-hidden border border-slate-300">
+                <button
+                  type="button"
+                  onClick={() => setCommunityViewMode('region')}
+                  className={`px-3 py-1.5 text-sm font-medium transition-colors ${
+                    communityViewMode === 'region' ? 'bg-sky-600 text-white' : 'bg-white text-slate-700 hover:bg-slate-100'
+                  }`}
+                >
+                  Region (city)
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setCommunityViewMode('neighborhood')}
+                  className={`px-3 py-1.5 text-sm font-medium transition-colors ${
+                    communityViewMode === 'neighborhood' ? 'bg-sky-600 text-white' : 'bg-white text-slate-700 hover:bg-slate-100'
+                  }`}
+                >
+                  San Diego neighborhoods
+                </button>
+              </div>
+            </div>
+            {communityChartData.length > 0 && (
+              <ResponsiveContainer width="100%" height={380}>
+                <BarChart data={communityChartData} margin={{ top: 8, right: 8, left: 8, bottom: 80 }}>
+                  <CartesianGrid strokeDasharray="3 3" />
+                  <XAxis dataKey="community" angle={-45} textAnchor="end" height={80} interval={0} />
+                  <YAxis />
+                  <Tooltip />
+                  <Bar dataKey="count" fill="#0ea5e9" name="Observations" radius={[4, 4, 0, 0]} />
+                </BarChart>
+              </ResponsiveContainer>
+            )}
+          </div>
         </ChartCard>
       </section>
 
@@ -401,33 +506,6 @@ export function ExploratoryAnalysis() {
         error={errorDash}
       />
 
-      {/* Top species */}
-      <section>
-        <p className="text-gray-700 mb-4 max-w-3xl">
-          What are people actually documenting? This chart shows the top species by observation count
-          (common or scientific name) — the “most seen” at the species level.
-        </p>
-        <ChartCard
-          title="Top species (most observed)"
-          subtitle="Top 20 by observation count"
-          loading={loadingDash}
-          error={errorDash}
-        >
-          {topSpecies.length > 0 && (
-            <ResponsiveContainer width="100%" height={500}>
-              <BarChart data={topSpecies} layout="vertical" margin={{ left: 120, right: 16 }}>
-                <CartesianGrid strokeDasharray="3 3" />
-                <XAxis type="number" />
-                <YAxis dataKey="species" type="category" width={115} tick={{ fontSize: 11 }} />
-                <Tooltip />
-                <Bar dataKey="count" fill="#0ea5e9" name="Observations" radius={[0, 4, 4, 0]} />
-              </BarChart>
-            </ResponsiveContainer>
-          )}
-        </ChartCard>
-      </section>
-
-      {/* Upload delay */}
       {uploadDelay != null && (
         <section>
           <p className="text-gray-700 mb-4 max-w-3xl">

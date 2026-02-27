@@ -24,6 +24,7 @@ from app.models.schemas import (
     TemporalTrendResponse,
     UserContributionBucketResponse,
     ExploratoryDashboardResponse,
+    SpeciesAccumulationPoint,
 )
 from app.services.data_loader import DataLoader
 from app.services.taxonomy import (
@@ -31,7 +32,7 @@ from app.services.taxonomy import (
     get_temporal_trends as taxonomy_temporal_trends,
     get_user_contribution_buckets,
 )
-from app.services.exploratory_metrics import get_dashboard
+from app.services.exploratory_metrics import get_dashboard, get_species_accumulation_curve
 
 router = APIRouter(prefix="/exploratory", tags=["exploratory"])
 
@@ -152,6 +153,22 @@ async def get_user_contribution(
         return []
 
 
+@router.get("/species-accumulation", response_model=List[SpeciesAccumulationPoint])
+async def get_species_accumulation(
+    competition_only: Optional[bool] = Query(None, description="True=competition only, False=non-competition only"),
+):
+    """
+    Cumulative curve: observations in chronological order (1st, 2nd, ... Nth) vs cumulative unique species.
+    X-axis = number of observations, Y-axis = unique species seen so far.
+    """
+    try:
+        gdf = _get_gdf(competition_only)
+        return get_species_accumulation_curve(gdf)
+    except Exception as e:
+        logger.exception("get_species_accumulation failed: %s", e)
+        return []
+
+
 def _minimal_dashboard():
     """Fallback dashboard when get_dashboard fails (e.g. missing columns)."""
     return {
@@ -166,6 +183,7 @@ def _minimal_dashboard():
         "quality_grade": [],
         "captive_wild": None,
         "by_community": [],
+        "by_sd_neighborhood": [],
         "by_hour": [{"hour": h, "count": 0} for h in range(24)],
         "user_contribution": {"buckets": [], "pareto_pct": None, "pareto_label": None, "mean_obs_per_user": None, "median_obs_per_user": None, "mode_obs_per_user": None, "mode_bucket": None, "pareto_curve": [], "research_rate_by_segment": []},
         "user_retention": None,

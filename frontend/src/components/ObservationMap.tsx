@@ -1,4 +1,4 @@
-import { useMemo, useEffect, useRef } from 'react';
+import { useMemo, useEffect, useRef, useState, useCallback } from 'react';
 import L from 'leaflet';
 import { MapContainer, TileLayer, useMap } from 'react-leaflet';
 import 'leaflet/dist/leaflet.css';
@@ -64,6 +64,23 @@ function getColor(obs: Observation, colorBy: 'quality_grade' | 'taxon_group' | '
     return TIER_COLORS[tier] ?? TIER_COLORS['1'];
   }
   return '#0ea5e9';
+}
+
+/** Returns the legend key for this observation (for filtering). */
+function getValueForKey(obs: Observation, colorBy: 'quality_grade' | 'taxon_group' | 'contributor_tier'): string {
+  if (colorBy === 'quality_grade') {
+    const g = (obs.quality_grade || 'unknown').toLowerCase();
+    return QUALITY_LEGEND.some((x) => x.key === g) ? g : 'unknown';
+  }
+  if (colorBy === 'taxon_group') {
+    const t = obs.taxon_group || 'Other';
+    return TAXON_COLORS[t] != null ? t : 'Other';
+  }
+  if (colorBy === 'contributor_tier') {
+    const tier = obs.contributor_tier || '1';
+    return TIER_LEGEND.some((x) => x.key === tier) ? tier : '1';
+  }
+  return '';
 }
 
 function popupContent(obs: Observation): string {
@@ -168,6 +185,8 @@ export function ObservationMap({
   dateRange,
   height = '600px',
 }: ObservationMapProps) {
+  const [legendFilter, setLegendFilter] = useState<string | null>(null);
+
   const filtered = useMemo(() => {
     if (!dateRange || !dateRange[0] || !dateRange[1]) return observations;
     const [from, to] = dateRange;
@@ -177,14 +196,30 @@ export function ObservationMap({
     });
   }, [observations, dateRange]);
 
+  const displayData = useMemo(() => {
+    if (!legendFilter) return filtered;
+    return filtered.filter((o) => getValueForKey(o, colorBy) === legendFilter);
+  }, [filtered, legendFilter, colorBy]);
+
   const stats = useMemo(() => {
-    const total = filtered.length;
-    const species = new Set(filtered.map((o) => o.species_name).filter(Boolean)).size;
-    const users = new Set(filtered.map((o) => o.user_id).filter(Boolean)).size;
+    const total = displayData.length;
+    const species = new Set(displayData.map((o) => o.species_name).filter(Boolean)).size;
+    const users = new Set(displayData.map((o) => o.user_id).filter(Boolean)).size;
     return { total, species, users };
-  }, [filtered]);
+  }, [displayData]);
 
   const legend = getLegendForColorBy(colorBy);
+  const handleLegendClick = useCallback(
+    (key: string) => {
+      setLegendFilter((prev) => (prev === key ? null : key));
+    },
+    []
+  );
+
+  // Reset legend filter when colorBy changes so selection stays valid
+  useEffect(() => {
+    setLegendFilter(null);
+  }, [colorBy]);
 
   return (
     <div className="relative" style={{ height, width: '100%' }}>
@@ -199,22 +234,36 @@ export function ObservationMap({
           attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
           url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
         />
-        <CanvasMarkers data={filtered} colorBy={colorBy} />
+        <CanvasMarkers data={displayData} colorBy={colorBy} />
       </MapContainer>
       {legend.items.length > 0 && (
-        <div className="absolute top-4 right-4 z-[1000] pointer-events-none">
+        <div className="absolute top-4 right-4 z-[1000] pointer-events-auto">
           <div className="bg-white/95 backdrop-blur rounded-lg shadow-lg border border-slate-200 px-3 py-2 text-sm">
             <div className="font-semibold text-slate-800 mb-1.5">{legend.title}</div>
-            <ul className="space-y-1">
-              {legend.items.map(({ key, label, color }) => (
-                <li key={key} className="flex items-center gap-2">
-                  <span
-                    className="shrink-0 w-3 h-3 rounded-full border border-slate-300"
-                    style={{ backgroundColor: color }}
-                  />
-                  <span className="text-slate-700">{label}</span>
-                </li>
-              ))}
+            <p className="text-xs text-slate-500 mb-1.5">Click to filter map</p>
+            <ul className="space-y-0.5">
+              {legend.items.map(({ key, label, color }) => {
+                const isActive = legendFilter === key;
+                const isDimmed = legendFilter != null && !isActive;
+                return (
+                  <li key={key}>
+                    <button
+                      type="button"
+                      onClick={() => handleLegendClick(key)}
+                      className={`w-full flex items-center gap-2 rounded px-1.5 py-0.5 text-left transition-colors ${
+                        isActive ? 'bg-sky-100 ring-1 ring-sky-400' : isDimmed ? 'opacity-50 hover:opacity-70' : 'hover:bg-slate-100'
+                      }`}
+                      title={isActive ? `Showing only: ${label}. Click to show all.` : `Show only ${label}`}
+                    >
+                      <span
+                        className="shrink-0 w-3 h-3 rounded-full border border-slate-300"
+                        style={{ backgroundColor: color }}
+                      />
+                      <span className={`text-slate-700 ${isActive ? 'font-semibold' : ''}`}>{label}</span>
+                    </button>
+                  </li>
+                );
+              })}
             </ul>
           </div>
         </div>

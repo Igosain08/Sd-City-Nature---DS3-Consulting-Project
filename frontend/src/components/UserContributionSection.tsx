@@ -1,3 +1,4 @@
+import { useMemo } from 'react';
 import {
   BarChart,
   Bar,
@@ -8,7 +9,6 @@ import {
   ResponsiveContainer,
   LineChart,
   Line,
-  Legend,
   Cell,
 } from 'recharts';
 import { ChartCard } from './ChartCard';
@@ -37,7 +37,17 @@ export function UserContributionSection({
 }: UserContributionSectionProps) {
   const uc = userContribution;
   const buckets = uc?.buckets ?? [];
-  const paretoCurve = uc?.pareto_curve ?? [];
+  const paretoCurveRaw = uc?.pareto_curve ?? [];
+  // Start at (0, 0); drop points with 0 < user_pct < 1 so we don't get two x=0 points (origin + first user at ~0.05%)
+  const paretoCurve = useMemo(() => {
+    if (paretoCurveRaw.length === 0) return paretoCurveRaw;
+    let list = paretoCurveRaw;
+    const first = list[0];
+    if (Number(first?.user_pct) !== 0 || Number(first?.obs_pct) !== 0) {
+      list = [{ user_pct: 0, obs_pct: 0 }, ...list];
+    }
+    return list.filter((p) => Number(p.user_pct) >= 1 || (Number(p.user_pct) === 0 && Number(p.obs_pct) === 0));
+  }, [paretoCurveRaw]);
   const researchBySegment = (uc?.research_rate_by_segment ?? []).map((r) => ({
     ...r,
     segment_name: buckets.find((b) => b.bucket_label === r.bucket_label)?.segment_name ?? r.bucket_label,
@@ -87,18 +97,22 @@ export function UserContributionSection({
                   <YAxis />
                   <Tooltip
                     formatter={(v: number, name: string) => [v, name === 'user_count' ? 'Users' : 'Observations']}
-                    labelFormatter={(_, payload) => payload?.[0]?.payload?.segment_name ?? _}
-                    content={({ active, payload, label }) => {
-                      if (!active || !payload?.length) return null;
-                      const row = payload[0].payload;
-                      return (
-                        <div className="bg-white border border-slate-200 rounded shadow-lg p-2 text-sm">
-                          <div className="font-medium">{row.segment_name ?? row.bucket_label}</div>
-                          <div>Users: {row.user_count?.toLocaleString()}</div>
-                          {row.total_obs != null && <div>Total obs: {row.total_obs.toLocaleString()}</div>}
-                        </div>
-                      );
-                    }}
+                    labelFormatter={(label: unknown, payload: Array<{ payload?: { segment_name?: string } }>) =>
+                      payload?.[0]?.payload?.segment_name ?? String(label ?? '')
+                    }
+                    content={
+                      (({ active, payload }: { active?: boolean; payload?: Array<{ payload?: Record<string, unknown> }> }) => {
+                        if (!active || !payload?.length) return null;
+                        const row = payload[0].payload as { segment_name?: string; bucket_label?: string; user_count?: number; total_obs?: number };
+                        return (
+                          <div className="bg-white border border-slate-200 rounded shadow-lg p-2 text-sm">
+                            <div className="font-medium">{row.segment_name ?? row.bucket_label}</div>
+                            <div>Users: {row.user_count?.toLocaleString()}</div>
+                            {row.total_obs != null && <div>Total obs: {row.total_obs.toLocaleString()}</div>}
+                          </div>
+                        );
+                      }) as never
+                    }
                   />
                   <Bar dataKey="user_count" name="Users" radius={[4, 4, 0, 0]}>
                     {buckets.map((_, i) => (
@@ -116,13 +130,23 @@ export function UserContributionSection({
               <h4 className="text-sm font-semibold text-slate-700 mb-2">Cumulative curve (Pareto)</h4>
               <p className="text-xs text-slate-500 mb-1">What % of users (sorted by contribution) contribute what % of observations?</p>
               <ResponsiveContainer width="100%" height={280}>
-                <LineChart data={paretoCurve} margin={{ top: 8, right: 8, left: 8, bottom: 8 }}>
+                <LineChart data={paretoCurve} margin={{ top: 12, right: 16, left: 56, bottom: 40 }}>
                   <CartesianGrid strokeDasharray="3 3" />
-                  <XAxis dataKey="user_pct" unit="%" />
-                  <YAxis unit="%" domain={[0, 100]} />
+                  <XAxis
+                    dataKey="user_pct"
+                    type="number"
+                    domain={[0, 100]}
+                    tickCount={11}
+                    tickFormatter={(v) => `${Math.round(Number(v))}%`}
+                    label={{ value: 'Cumulative % of users (sorted by contribution)', position: 'insideBottom', offset: -12 }}
+                  />
+                  <YAxis
+                    unit="%"
+                    domain={[0, 100]}
+                    label={{ value: 'Cumulative % of obs', angle: -90, position: 'insideLeft', offset: 0, style: { textAnchor: 'middle' } }}
+                  />
                   <Tooltip formatter={(v: number) => [`${v}%`, 'Cumulative observations']} labelFormatter={(v) => `${v}% of users`} />
-                  <Legend />
-                  <Line type="monotone" dataKey="obs_pct" stroke="#8b5cf6" strokeWidth={2} name="Cumulative % of observations" dot={false} />
+                  <Line type="monotone" dataKey="obs_pct" stroke="#8b5cf6" strokeWidth={2} dot={false} />
                 </LineChart>
               </ResponsiveContainer>
             </div>
