@@ -44,7 +44,7 @@ async def get_priority_zones():
 
     hexs_finalized = generate_recommendations(hex_scored, gdf, top_n=len(hex_scored))
 
-    top10 = hexs_finalized[:10]
+    top10 = hexs_finalized[:300]
 
     return {"hexes": hexs_finalized, "top": top10}
 

@@ -15,7 +15,7 @@ import h3pandas
 
 def calculate_priority_score(hex_stats: gpd.GeoDataFrame, gap_power: float = 1.7) -> gpd.GeoDataFrame:
     """
-    Option 1: Damp heavy-tailed counts so N doesn't dominate.
+
 
     Definitions:
       cnc_ratio = C / (C + N)
@@ -107,12 +107,8 @@ def _compute_best_time_bucket_per_hex(
         "Evening (6–10 PM)",
         "Late night (10 PM–12 AM)",
     ]
-    # We’ll ignore late-night labels unless they win; you can also remove them if you truly want 4 only.
-    # If you want strictly 4 only, use bins=[6,10,14,18,22] and labels=["Morning","Midday","Afternoon","Evening"].
-
     df = joined.copy()
 
-    # optionally: learn timing from baseline behavior (non-CNC)
     if use_non_cnc_only and cnc_flag_col in df.columns:
         df = df[df[cnc_flag_col] == False].copy()
 
@@ -154,6 +150,8 @@ def _compute_best_time_bucket_per_hex(
         if int(top["users"]) >= min_users and int(top["obs"]) >= min_obs:
             best_map[str(hid)] = str(top["time_bucket"])
 
+    
+
     return best_map
 
 
@@ -185,12 +183,17 @@ def generate_recommendations(
     # Work in 4326 for geometry + centers
     hex_top = scored_hex_gdf.to_crs("EPSG:4326").sort_values("priority_score", ascending=False).head(top_n).reset_index(drop=True)
 
-    needed_cols = [cnc_flag_col, iconic_col, "geometry", "user_id", "id", "time_observed_at"]
+    taxon_col = "taxon_id"  # adjust if your column name differs
+    common_col = "common_name"   # CHANGE if your column is named differently
+
+    needed_cols = [cnc_flag_col, iconic_col, common_col, "geometry", "user_id", "id", "time_observed_at"]
     missing = [c for c in needed_cols if c not in obs_gdf.columns]
     if missing:
-        raise ValueError(f"obs_gdf missing columns needed for timing: {missing}")
-
+        raise ValueError(f"obs_gdf missing columns needed for common-name taxa: {missing}")
+    
     obs = obs_gdf[needed_cols].copy().to_crs("EPSG:4326")
+        
+
     # Join obs -> top hexes only
     joined = gpd.sjoin(
         obs,
@@ -216,19 +219,55 @@ def generate_recommendations(
 
     # Compute top iconic taxa from NON-CNC only
     non_cnc = joined[joined[cnc_flag_col] == False].copy()
-    taxa_map = {}
+    
+    taxa_map: Dict[str, Dict[str, List[str]]] = {}
+    
     if len(non_cnc) > 0:
         for hid, grp in non_cnc.groupby("hex_id"):
-            top_taxa = (
-                grp[iconic_col]
+            # Clean strings
+            grp2 = grp.copy()
+    
+            grp2[iconic_col] = (
+                grp2[iconic_col]
                 .dropna()
                 .astype(str)
-                .value_counts()
-                .head(3)
-                .index
-                .tolist()
+                .str.strip()
             )
-            taxa_map[str(hid)] = top_taxa
+    
+            grp2[common_col] = (
+                grp2[common_col]
+                .dropna()
+                .astype(str)
+                .str.strip()
+            )
+    
+            # Drop rows missing either iconic group or common name
+            grp2 = grp2.dropna(subset=[iconic_col, common_col])
+            grp2 = grp2[(grp2[iconic_col] != "") & (grp2[common_col] != "")]
+            grp2 = grp2[grp2[common_col].str.lower() != "unknown"]
+    
+            if len(grp2) == 0:
+                continue
+    
+            # 1) top 3 iconic groups
+            top_groups = grp2[iconic_col].value_counts().head(3).index.tolist()
+    
+            # 2) within each group, top 5 common names (rank by unique observers to reduce spam)
+            group_to_common: Dict[str, List[str]] = {}
+            for gname in top_groups:
+                sub = grp2[grp2[iconic_col] == gname]
+    
+                top_common = (
+                    sub.groupby(common_col)["user_id"]
+                       .nunique()
+                       .sort_values(ascending=False)
+                       .head(5)
+                       .index
+                       .tolist()
+                )
+                group_to_common[str(gname)] = [str(x) for x in top_common]
+    
+            taxa_map[str(hid)] = group_to_common
 
     recs: List[Dict] = []
     for i, row in hex_top.iterrows():
@@ -261,23 +300,20 @@ def generate_recommendations(
             "radius_km": float(radius_km),
             "priority_score": float(score),
             "recommended_time": time_map.get(hid, GENERIC_FALLBACK),
-            "target_taxa": taxa_map.get(hid, []),
+            "target_taxa": taxa_map.get(hid, {}),
             "rationale": rationale,
             "geometry": mapping(row["geometry"]) if row.get("geometry") is not None else {},
             # Optional extras your cards might want:
             "non_cnc_observation_count": non_cnc_count,
             "cnc_observation_count": cnc_count,
+            "habitat": row.get("habitat", None)
         })
 
     return recs
 
 
 def calculate_timing_efficiency():
-    """
-    Placeholder for timing efficiency calculation logic.
-    This would analyze historical observation patterns to identify optimal timing windows.
-    """
-    # For now, we return a static example. You would replace this with real analysis.
+
     return [
         {
             "day_of_week": "Saturday",

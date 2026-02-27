@@ -12,13 +12,14 @@ import shapely
 import h3
 from shapely.geometry import mapping
 from shapely.geometry import Point
+from pathlib import Path
 
 
 def generate_county_hex_grid(
     county_boundary: gpd.GeoDataFrame,
     resolution: int = 7,
     buffer_m: float = 0.0,
-    inside_ratio: float = 1.0,
+    inside_ratio: float = 0.0,
 ) -> gpd.GeoDataFrame:
     if county_boundary.crs is None:
         raise ValueError("county_boundary must have a CRS set.")
@@ -182,7 +183,7 @@ def hex_bin_observations(
         obs,
         hex_grid[["hex_id", "geometry"]],
         how="inner",
-        predicate="within",  # switch to "intersects" if you suspect edge-point misses
+        predicate="intersects",  # switch to "intersects" if you suspect edge-point misses
     )
 
     # 4) aggregate counts per hex
@@ -220,7 +221,27 @@ def hex_bin_observations(
 
     out["min_non_cnc_threshold"] = int(min_non_cnc)
 
+    BACKEND_DIR = Path(__file__).resolve().parents[2]  # services -> app -> backend
+    HAB_PATH = BACKEND_DIR / "data" / "hex_habitat_res7.csv"
+
+    if HAB_PATH.exists():
+        hab = pd.read_csv(HAB_PATH)
+        hab["hex_id"] = hab["hex_id"].astype(str)
+        out["hex_id"] = out["hex_id"].astype(str)
+
+        # only pull what you need
+        hab = hab[["hex_id", "habitat"]]
+        out = out.merge(hab, on="hex_id", how="left")
+        out["habitat"] = out["habitat"].where(out["habitat"].notna(), None)
+        
+        out["hex_id"] = out["hex_id"].astype(str)
+        hab["hex_id"] = hab["hex_id"].astype(str)
+
+    else:
+        out["habitat"] = None
+
     # 6) filter: keep only hexes with proven baseline potential
+
     out = out[out["non_cnc_observation_count"] >= min_non_cnc].copy()
 
     return out.reset_index(drop=True)

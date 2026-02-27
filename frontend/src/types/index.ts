@@ -42,6 +42,9 @@ export interface CityStats {
   species_per_observer: number;
 }
 
+export type TargetTaxaByGroup = Record<string, string[]>;
+
+
 export interface PriorityZone {
   // Core identifiers
   zone_id: string;  // Maps to hex_id
@@ -72,7 +75,8 @@ export interface PriorityZone {
   rationale: string;
   recommended_time?: string;  // Optional, may not always have
   recommended_actions?: string[];
-  target_taxa?: string[];
+  target_taxa?: TargetTaxaByGroup; // now it's { "Aves": ["...", "..."], ... }
+
   
   // Geography
   geometry: GeoJSON.Geometry;

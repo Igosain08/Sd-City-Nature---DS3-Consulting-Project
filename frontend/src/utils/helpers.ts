@@ -31,27 +31,23 @@ export function calculateBiodiversityYield(
   if (totalObservations === 0) return 0;
   return uniqueSpecies / totalObservations;
 }
-
-/**
- * Gets color for priority score (0-100)
- */
+// gets the color gradients
 export function getPriorityColor(score: number) {
   const s = Number.isFinite(score) ? Math.max(0, Math.min(100, score)) : 0;
 
-  // 5 buckets => 6 breakpoints (last is exclusive)
-  const breaks = [0, 20, 40, 60, 80, 101];
+  // 4 buckets => 5 breakpoints (last is exclusive)
+  const breaks = [0, 25, 50, 75, 101];
 
   let k = 0;
-  while (k < breaks.length - 1 && s >= breaks[k + 1]) k++; // k = 0..4
+  while (k < breaks.length - 1 && s >= breaks[k + 1]) k++; // k = 0..3
 
-  // More contrasty steps (low = very light purple, high = dark magenta)
-  const hueSteps =        [275, 288, 300, 312, 322];
-  const saturationSteps = [40, 55, 70, 82, 92];
-  const lightnessSteps =  [96, 84, 68, 50, 32];
+  // Low = light cyan, High = dark navy
+  const hueSteps =        [180, 200, 210, 220];
+  const saturationSteps = [96, 94, 92, 88];
+  const lightnessSteps =  [74, 58, 40, 22];
 
   return `hsl(${hueSteps[k]} ${saturationSteps[k]}% ${lightnessSteps[k]}%)`;
 }
-
 /**
  * Gets color for biodiversity yield
  */

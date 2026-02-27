@@ -2,7 +2,8 @@
 Pydantic response models for API endpoints
 """
 from pydantic import BaseModel
-from typing import List, Optional, Any, Literal
+from typing import List, Optional, Any, Literal, Dict
+
 
 
 class ObservationResponse(BaseModel):
@@ -94,9 +95,11 @@ class PriorityZoneOut(BaseModel):
     rationale: str = ""
 
     recommended_time: Optional[str] = None
-    target_taxa: List[str] = []
+    target_taxa: Optional[Dict[str, List[str]]] = None
     radius_km: Optional[float] = None
     recommended_actions: List[str] = []
+    
+    habitat: Optional[str] = None
 
     geometry: Any
 
