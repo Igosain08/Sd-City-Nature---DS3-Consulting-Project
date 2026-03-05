@@ -38,6 +38,7 @@ def calculate_priority_score(hex_stats: gpd.GeoDataFrame, gap_power: float = 1.7
             raise ValueError(f"hex_stats missing '{c}'")
 
     df = hex_stats.copy()
+    
 
     # --- base columns ---
     N = df["non_cnc_observation_count"].fillna(0).astype(float)
@@ -77,6 +78,8 @@ def calculate_priority_score(hex_stats: gpd.GeoDataFrame, gap_power: float = 1.7
 
     df["priority_score_norm"] = (df["priority_score"] / 100.0).astype(float)
 
+
+    
     return df
 
 
@@ -268,6 +271,7 @@ def generate_recommendations(
                 group_to_common[str(gname)] = [str(x) for x in top_common]
     
             taxa_map[str(hid)] = group_to_common
+    
 
     recs: List[Dict] = []
     for i, row in hex_top.iterrows():
@@ -286,6 +290,7 @@ def generate_recommendations(
         cnc_ratio = float(row.get("cnc_ratio", 0.0))
         non_cnc_count = int(row.get("non_cnc_observation_count", 0))
         cnc_count = int(row.get("cnc_observation_count", 0))
+
 
         rationale = (
             f"High baseline activity outside CNC ({non_cnc_count} obs) but low CNC share "
@@ -306,7 +311,9 @@ def generate_recommendations(
             # Optional extras your cards might want:
             "non_cnc_observation_count": non_cnc_count,
             "cnc_observation_count": cnc_count,
-            "habitat": row.get("habitat", None)
+            "habitat": row.get("habitat", None),
+            "non_cnc_unique_species": int(row.get("non_cnc_unique_species", 0)),
+            "cnc_unique_species": int(row.get("cnc_unique_species", 0))          
         })
 
     return recs

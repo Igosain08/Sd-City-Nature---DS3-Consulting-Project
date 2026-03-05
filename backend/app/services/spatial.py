@@ -14,6 +14,29 @@ from shapely.geometry import mapping
 from shapely.geometry import Point
 from pathlib import Path
 
+#function to add the two boundaries
+def build_fill_boundary(sd_boundary: gpd.GeoDataFrame, sd_coastal: gpd.GeoDataFrame) -> gpd.GeoDataFrame:
+    # Ensure CRS exists
+    if sd_boundary.crs is None:
+        raise ValueError("sd_boundary has no CRS")
+    if sd_coastal.crs is None:
+        sd_coastal = sd_coastal.set_crs("EPSG:4326")  # typical for ArcGIS geojson
+
+    sd_coastal = sd_coastal.to_crs(sd_boundary.crs)
+
+    county_geom = unary_union(sd_boundary.dissolve().geometry)
+    coastal_geom = unary_union(sd_coastal.dissolve().geometry)
+
+    if not county_geom.is_valid:
+        county_geom = shapely.make_valid(county_geom)
+    if not coastal_geom.is_valid:
+        coastal_geom = shapely.make_valid(coastal_geom)
+
+    fill_geom = county_geom.union(coastal_geom)
+
+    return gpd.GeoDataFrame(geometry=[fill_geom], crs=sd_boundary.crs)
+
+
 
 def generate_county_hex_grid(
     county_boundary: gpd.GeoDataFrame,
@@ -205,18 +228,26 @@ def hex_bin_observations(
         .rename("non_cnc_unique_species")
     )
 
+    cnc_unique_species = (
+    joined[joined[cnc_flag_col] == True]
+    .groupby("hex_id")[taxon_col]
+    .nunique()
+    .rename("cnc_unique_species")
+    )
+    
+
     stats = pd.concat(
-        [total_counts, cnc_counts, non_cnc_counts, non_cnc_unique_species],
+        [total_counts, cnc_counts, non_cnc_counts, non_cnc_unique_species, cnc_unique_species],
         axis=1
     ).fillna(0).reset_index()
 
     # types
-    for col in ["total_observation_count","cnc_observation_count","non_cnc_observation_count","non_cnc_unique_species"]:
+    for col in ["total_observation_count","cnc_observation_count","non_cnc_observation_count","non_cnc_unique_species", "cnc_unique_species"]:
         stats[col] = stats[col].astype(int)
 
     # 5) join stats back onto full grid (so wilderness hexes exist, counts default 0)
     out = hex_grid.merge(stats, on="hex_id", how="left")
-    for col in ["total_observation_count","cnc_observation_count","non_cnc_observation_count","non_cnc_unique_species"]:
+    for col in ["total_observation_count","cnc_observation_count","non_cnc_observation_count","non_cnc_unique_species", "cnc_unique_species"]:
         out[col] = out[col].fillna(0).astype(int)
 
     out["min_non_cnc_threshold"] = int(min_non_cnc)
@@ -243,5 +274,7 @@ def hex_bin_observations(
     # 6) filter: keep only hexes with proven baseline potential
 
     out = out[out["non_cnc_observation_count"] >= min_non_cnc].copy()
+    
+    out = out[out["cnc_observation_count"] >= 1]
 
     return out.reset_index(drop=True)

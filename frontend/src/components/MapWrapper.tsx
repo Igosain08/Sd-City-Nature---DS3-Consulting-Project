@@ -121,7 +121,8 @@ export function MapWrapper({
         <GeoJSON
           // This key forces Leaflet to re-evaluate styles when hover/selection changes.
           // (Not strictly needed for the legend, but helps for consistent highlighting.)
-          key={`${hoveredZoneId ?? "none"}-${selectedZoneId ?? "none"}`}
+          key={`${geoJsonLayer.features.length}-${geoJsonLayer.features.map(f => (f as any).id).join(",")}-${hoveredZoneId ?? "none"}-${selectedZoneId ?? "none"}`}
+
           data={geoJsonLayer as any}
           style={styleFn as any}
           onEachFeature={(feature, layer) => {
@@ -138,6 +139,7 @@ export function MapWrapper({
               <div style="font-size:12px; line-height:1.25;">
                 <div><b>Score:</b> ${score}</div>
                 <div><b>Best Time:</b> ${bestTime}</div>
+                
               </div>
             `;
 

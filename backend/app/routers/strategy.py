@@ -5,7 +5,7 @@ from fastapi import APIRouter
 from typing import List
 from app.models.schemas import PriorityZonesBundle, TimingWindowResponse
 from app.services.data_loader import DataLoader
-from app.services.spatial import generate_county_hex_grid, hex_bin_observations 
+from app.services.spatial import generate_county_hex_grid, hex_bin_observations, build_fill_boundary
 from app.services.scoring import calculate_timing_efficiency, calculate_priority_score, generate_recommendations
 from app.config import HEX_RESOLUTION
 import geopandas as gpd
@@ -23,6 +23,10 @@ if not SD_PATH.exists():
 
 sd_boundary = gpd.read_file(SD_PATH, engine="pyogrio")
 
+SD_COASTAL = BACKEND_DIR / "data" / "coastal_zones.geojson"
+
+sd_coastal = gpd.read_file(SD_COASTAL, engine="pyogrio")
+
 @router.get("/priority-zones", response_model=PriorityZonesBundle)
 async def get_priority_zones():
     """
@@ -31,12 +35,19 @@ async def get_priority_zones():
     """
     # Load observations
     gdf = DataLoader.get_cached_data()
+
+    fill_boundary = build_fill_boundary(sd_boundary, sd_coastal)
+
+    fill_boundary = sd_boundary.to_crs("EPSG:26911").copy()
+    fill_boundary["geometry"] = fill_boundary.buffer(10000)
+    fill_boundary = fill_boundary.to_crs(sd_boundary.crs)
+    
     
     hex_stats = hex_bin_observations(
     gdf=gdf,
-    county_boundary=sd_boundary,
+    county_boundary=fill_boundary,
     resolution=7,
-    min_non_cnc=50,
+    min_non_cnc=30,
     use_existing_cnc_flag=True,  # you already have during_competition
     )
 
@@ -44,7 +55,7 @@ async def get_priority_zones():
 
     hexs_finalized = generate_recommendations(hex_scored, gdf, top_n=len(hex_scored))
 
-    top10 = hexs_finalized[:300]
+    top10 = hexs_finalized
 
     return {"hexes": hexs_finalized, "top": top10}
 
