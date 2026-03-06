@@ -15,14 +15,13 @@ import h3pandas
 
 def calculate_priority_score(hex_stats: gpd.GeoDataFrame, gap_power: float = 1.7) -> gpd.GeoDataFrame:
     """
-
-
     Definitions:
-      cnc_ratio = C / (C + N)
-      gap = (1 - cnc_ratio) ** gap_power
+      U_total = non_cnc_unique_species + cnc_unique_species
+      cnc_species_ratio = cnc_unique_species / U_total
+      gap = (1 - cnc_species_ratio) ** gap_power
 
-    Raw (dampened):
-      raw_score = log1p(N) * gap * log1p(U)
+    Raw:
+      raw_score = log1p(N) * log1p(U_total) * gap
 
     Then:
       raw_log = log1p(raw_score)
@@ -32,34 +31,44 @@ def calculate_priority_score(hex_stats: gpd.GeoDataFrame, gap_power: float = 1.7
         "non_cnc_observation_count",
         "cnc_observation_count",
         "non_cnc_unique_species",
+        "cnc_unique_species",
     ]
     for c in needed:
         if c not in hex_stats.columns:
             raise ValueError(f"hex_stats missing '{c}'")
 
     df = hex_stats.copy()
-    
 
     # --- base columns ---
     N = df["non_cnc_observation_count"].fillna(0).astype(float)
     C = df["cnc_observation_count"].fillna(0).astype(float)
-    U = df["non_cnc_unique_species"].fillna(0).astype(float)
+    U_non_cnc = df["non_cnc_unique_species"].fillna(0).astype(float)
+    U_cnc = df["cnc_unique_species"].fillna(0).astype(float)
 
-    # --- cnc ratio ---
-    total = N + C
-    cnc_ratio = np.where(total > 0, C / total, 0.0)
+    # --- total known biodiversity ---
+    U_total = U_non_cnc + U_cnc
+    U_total = np.clip(U_total, 0.0, None)
+
+    # --- species-based cnc ratio (sidesteps time window problem) ---
+    cnc_species_ratio = np.where(U_total > 0, U_cnc / U_total, 0.0)
+    cnc_species_ratio = np.clip(cnc_species_ratio, 0.0, 1.0)
+    df["cnc_species_ratio"] = cnc_species_ratio
+
+    # keep obs-based cnc_ratio too (useful for display in frontend)
+    total_obs = N + C
+    cnc_ratio = np.where(total_obs > 0, C / total_obs, 0.0)
     cnc_ratio = np.clip(cnc_ratio, 0.0, 1.0)
     df["cnc_ratio"] = cnc_ratio
 
-    # --- dampened components (prevents N blow-up) ---
+    # --- dampened components ---
     N_eff = np.log1p(np.clip(N, 0.0, None))
-    U_eff = np.log1p(np.clip(U, 0.0, None))
+    U_eff = np.log1p(np.clip(U_total, 0.0, None))
 
-    # emphasize "underused during CNC" a bit more than linear
-    gap = np.power(1.0 - cnc_ratio, gap_power)
+    # --- gap based on species coverage ---
+    gap = np.power(1.0 - cnc_species_ratio, gap_power)
 
     # --- raw score ---
-    raw = N_eff * gap * U_eff
+    raw = N_eff * U_eff * gap
     raw = np.where(np.isfinite(raw), raw, 0.0)
     raw = np.clip(raw, 0.0, None)
     df["raw_priority_score"] = raw.astype(float)
@@ -78,8 +87,6 @@ def calculate_priority_score(hex_stats: gpd.GeoDataFrame, gap_power: float = 1.7
 
     df["priority_score_norm"] = (df["priority_score"] / 100.0).astype(float)
 
-
-    
     return df
 
 
