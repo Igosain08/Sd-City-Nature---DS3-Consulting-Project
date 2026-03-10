@@ -14,6 +14,151 @@ from shapely.geometry import mapping
 from shapely.geometry import Point
 from pathlib import Path
 
+
+def enrich_hex_with_nearest_places(
+    hex_gdf: gpd.GeoDataFrame,
+    greenery_gdf: gpd.GeoDataFrame | None,   # ← clean name
+    top_n: int | None = None,
+) -> gpd.GeoDataFrame:
+
+    if greenery_gdf is None or len(greenery_gdf) == 0:  # ← matches param
+        hex_gdf = hex_gdf.copy()
+        hex_gdf["top_places"] = [[] for _ in range(len(hex_gdf))]
+        return hex_gdf
+
+    parks_raw = greenery_gdf.copy()  # ← matches param
+
+    #ranking for each area within the hex
+    TYPE_RANK = {
+        "nature_reserve": 1,
+        "protected_area": 1,
+        "beach": 2,
+        "trail": 3,
+        "park": 4,
+        "garden": 5,
+        "botanical_garden": 5,
+        "recreation_ground": 6,
+        "forest": 7,
+        "wood": 7,
+        "grassland": 8,
+        "meadow": 9,
+        "scrub": 10,
+        "cemetery": 11,
+        "grave_yard": 11,
+        "grass": 12,
+    }
+
+    def _park_name(row) -> str:
+        for col in ("name", "leisure", "landuse", "natural", "amenity", "route"):
+            v = row.get(col)
+            if v and str(v).strip() and str(v).strip().lower() not in ("yes", "no", "hiking"):
+                return str(v).strip()
+        return ""
+
+    def _park_type(row) -> str:
+        for col in ("leisure", "landuse", "natural", "amenity"):
+            v = row.get(col)
+            if v and str(v).strip():
+                return str(v).strip()
+        if row.get("route") == "hiking":
+            return "trail"
+        if row.get("boundary") == "protected_area":
+            return "protected_area"
+        if row.get("highway") in ("path", "footway"):
+            return "trail"
+        if row.get("natural") == "beach":
+            return "beach"
+        return "park"
+
+    park_rows = []
+    for _, feat in parks_raw.iterrows():
+        name = _park_name(feat)
+        SKIP_TYPES = {"scrub", "grass", "grassland", "meadow"}
+        if not name or (name == _park_type(feat) and _park_type(feat) in SKIP_TYPES):
+            continue
+        if not name:
+            continue
+        geom = feat.geometry
+        if geom is None or geom.is_empty:
+            continue
+        pt = geom.centroid if geom.geom_type != "Point" else geom
+        park_rows.append({"park_name": name, "park_type": _park_type(feat), "geometry": pt})
+
+    if not park_rows:
+        hex_gdf = hex_gdf.copy()
+        hex_gdf["top_places"] = [[] for _ in range(len(hex_gdf))]
+        return hex_gdf
+
+    parks_pts = gpd.GeoDataFrame(park_rows, crs=parks_raw.crs or "EPSG:4326").to_crs("EPSG:26911")
+    hex_m = hex_gdf.to_crs("EPSG:26911").copy()
+
+    # Which parks fall INSIDE each hex
+    joined = gpd.sjoin(parks_pts, hex_m[["hex_id", "geometry"]], how="left", predicate="within")
+
+    inside_map: Dict[str, List[dict]] = {}
+    for _, row in joined.dropna(subset=["hex_id"]).iterrows():
+        hid = str(row["hex_id"])
+        hex_centroid = hex_m.loc[hex_m["hex_id"] == hid, "geometry"].iloc[0].centroid
+        dist = int(row["geometry"].distance(hex_centroid))
+        pt_4326 = gpd.GeoSeries([row["geometry"]], crs="EPSG:26911").to_crs("EPSG:4326").iloc[0]
+        inside_map.setdefault(hid, []).append({
+            "name": row["park_name"],
+            "type": row["park_type"],
+            "lat": round(float(pt_4326.y), 6),
+            "lng": round(float(pt_4326.x), 6),
+            "distance_m": dist,
+            "inside_hex": True,
+        })
+
+    for hid in inside_map:
+        inside_map[hid].sort(key=lambda x: (TYPE_RANK.get(x["type"], 99), x["distance_m"]))
+
+    park_coords = parks_pts.geometry.apply(lambda g: (g.x, g.y)).tolist()
+
+    top_places_list = []
+    for _, hex_row in hex_m.iterrows():
+        hid = str(hex_row["hex_id"])
+        inside = inside_map.get(hid, [])
+
+        if top_n is None:
+            # return everything inside the hex, no nearest-fill
+            top_places_list.append(inside)
+            continue
+
+        inside = inside[:top_n]
+
+        if len(inside) >= top_n:
+            top_places_list.append(inside[:top_n])
+            continue
+
+        already_names = {p["name"] for p in inside}
+        cx, cy = hex_row["geometry"].centroid.x, hex_row["geometry"].centroid.y
+        dists = sorted(((((px-cx)**2 + (py-cy)**2)**0.5), i) for i, (px, py) in enumerate(park_coords))
+
+        extras = []
+        for dist_m, idx in dists:
+            if len(inside) + len(extras) >= top_n:
+                break
+            p_row = parks_pts.iloc[idx]
+            if p_row["park_name"] in already_names:
+                continue
+            pt_4326 = gpd.GeoSeries([p_row["geometry"]], crs="EPSG:26911").to_crs("EPSG:4326").iloc[0]
+            extras.append({
+                "name": p_row["park_name"],
+                "type": p_row["park_type"],
+                "lat": round(float(pt_4326.y), 6),
+                "lng": round(float(pt_4326.x), 6),
+                "distance_m": int(dist_m),
+                "inside_hex": False,
+            })
+
+        top_places_list.append((inside + extras)[:top_n])    
+
+    hex_gdf = hex_gdf.copy()
+    hex_gdf["top_places"] = top_places_list
+    return hex_gdf
+
+
 #function to add the two boundaries
 def build_fill_boundary(sd_boundary: gpd.GeoDataFrame, sd_coastal: gpd.GeoDataFrame) -> gpd.GeoDataFrame:
     # Ensure CRS exists
@@ -172,6 +317,10 @@ def hex_bin_observations(
     # 2) Make sure observations are points + same CRS for sjoin
     obs = gdf.copy()
 
+    #checks if cultivated
+    if "captive_cultivated" in obs.columns:
+     obs = obs[obs["captive_cultivated"] != True].copy()
+
     # ensure observed_on exists if we need to compute CNC flag
     if not use_existing_cnc_flag:
         if date_col not in obs.columns:
@@ -235,11 +384,32 @@ def hex_bin_observations(
     .rename("cnc_unique_species")
     )
     
+    # for jaccard
+    non_cnc_species_set = (
+    non_cnc.groupby("hex_id")[taxon_col]
+    .apply(set)
+    .rename("non_cnc_species_set")
+    )
+
+    cnc_species_set = (
+        joined[joined[cnc_flag_col] == True]
+        .groupby("hex_id")[taxon_col]
+        .apply(set)
+        .rename("cnc_species_set")
+    )
+
 
     stats = pd.concat(
-        [total_counts, cnc_counts, non_cnc_counts, non_cnc_unique_species, cnc_unique_species],
+        [total_counts, cnc_counts, non_cnc_counts, non_cnc_unique_species, cnc_unique_species, non_cnc_species_set, cnc_species_set],
         axis=1
     ).fillna(0).reset_index()
+
+    stats["non_cnc_species_set"] = stats["non_cnc_species_set"].apply(
+    lambda x: x if isinstance(x, set) else set()
+    )
+    stats["cnc_species_set"] = stats["cnc_species_set"].apply(
+        lambda x: x if isinstance(x, set) else set()
+    )
 
     # types
     for col in ["total_observation_count","cnc_observation_count","non_cnc_observation_count","non_cnc_unique_species", "cnc_unique_species"]:
@@ -251,6 +421,13 @@ def hex_bin_observations(
         out[col] = out[col].fillna(0).astype(int)
 
     out["min_non_cnc_threshold"] = int(min_non_cnc)
+
+    out["non_cnc_species_set"] = out["non_cnc_species_set"].apply(
+    lambda x: x if isinstance(x, set) else set()
+    )
+    out["cnc_species_set"] = out["cnc_species_set"].apply(
+        lambda x: x if isinstance(x, set) else set()
+    )
 
     BACKEND_DIR = Path(__file__).resolve().parents[2]  # services -> app -> backend
     HAB_PATH = BACKEND_DIR / "data" / "hex_habitat_res7.csv"

@@ -101,7 +101,11 @@ class PriorityZoneOut(BaseModel):
     
     habitat: Optional[str] = None
 
+    
     geometry: Any
+
+    top_places: list[dict[str, Any]] = []
+
 
 class PriorityZonesBundle(BaseModel):
     hexes: List[PriorityZoneOut]   # map

@@ -9,29 +9,23 @@ from shapely.geometry.base import BaseGeometry
 import numpy as np
 import pandas as pd
 from typing import List, Dict, Union, Optional, Tuple
-import h3
-import h3pandas
+from app.services.spatial import enrich_hex_with_nearest_places
 
 
 def calculate_priority_score(hex_stats: gpd.GeoDataFrame, gap_power: float = 1.7) -> gpd.GeoDataFrame:
     """
-    Definitions:
-      U_total = non_cnc_unique_species + cnc_unique_species
-      cnc_species_ratio = cnc_unique_species / U_total
-      gap = (1 - cnc_species_ratio) ** gap_power
-
-    Raw:
-      raw_score = log1p(N) * log1p(U_total) * gap
-
-    Then:
-      raw_log = log1p(raw_score)
-      priority_score = min-max(raw_log) scaled to [0,100]
+    Formula:
+      baseline_species = non_cnc_unique_species
+      intersection     = |cnc_species_set ∩ non_cnc_species_set|
+      coverage_gap     = 1 - intersection / baseline_species
+      raw              = log1p(baseline_species) × coverage_gap ^ gap_power
+      priority_score   = minmax(log1p(raw)) scaled to [0, 100]
     """
     needed = [
-        "non_cnc_observation_count",
-        "cnc_observation_count",
         "non_cnc_unique_species",
         "cnc_unique_species",
+        "non_cnc_species_set",
+        "cnc_species_set",
     ]
     for c in needed:
         if c not in hex_stats.columns:
@@ -39,36 +33,33 @@ def calculate_priority_score(hex_stats: gpd.GeoDataFrame, gap_power: float = 1.7
 
     df = hex_stats.copy()
 
-    # --- base columns ---
-    N = df["non_cnc_observation_count"].fillna(0).astype(float)
-    C = df["cnc_observation_count"].fillna(0).astype(float)
+    # --- base species counts ---
     U_non_cnc = df["non_cnc_unique_species"].fillna(0).astype(float)
-    U_cnc = df["cnc_unique_species"].fillna(0).astype(float)
 
-    # --- total known biodiversity ---
-    U_total = U_non_cnc + U_cnc
-    U_total = np.clip(U_total, 0.0, None)
+    # --- intersection of CNC and baseline species sets ---
+    def _intersection_count(row) -> float:
+        baseline = row["non_cnc_species_set"] if isinstance(row["non_cnc_species_set"], set) else set()
+        cnc     = row["cnc_species_set"]      if isinstance(row["cnc_species_set"],      set) else set()
+        return float(len(baseline & cnc))
 
-    # --- species-based cnc ratio (sidesteps time window problem) ---
-    cnc_species_ratio = np.where(U_total > 0, U_cnc / U_total, 0.0)
-    cnc_species_ratio = np.clip(cnc_species_ratio, 0.0, 1.0)
-    df["cnc_species_ratio"] = cnc_species_ratio
+    df["species_intersection"] = df.apply(_intersection_count, axis=1)
 
-    # keep obs-based cnc_ratio too (useful for display in frontend)
+    # --- coverage gap ---
+    df["coverage_gap"] = np.where(
+        U_non_cnc > 0,
+        1.0 - df["species_intersection"] / U_non_cnc,
+        0.0,
+    )
+    df["coverage_gap"] = df["coverage_gap"].clip(0.0, 1.0)
+
+    # --- keep cnc_ratio for frontend display ---
+    N = df.get("non_cnc_observation_count", pd.Series(0, index=df.index)).fillna(0).astype(float)
+    C = df.get("cnc_observation_count",     pd.Series(0, index=df.index)).fillna(0).astype(float)
     total_obs = N + C
-    cnc_ratio = np.where(total_obs > 0, C / total_obs, 0.0)
-    cnc_ratio = np.clip(cnc_ratio, 0.0, 1.0)
-    df["cnc_ratio"] = cnc_ratio
-
-    # --- dampened components ---
-    N_eff = np.log1p(np.clip(N, 0.0, None))
-    U_eff = np.log1p(np.clip(U_total, 0.0, None))
-
-    # --- gap based on species coverage ---
-    gap = np.power(1.0 - cnc_species_ratio, gap_power)
+    df["cnc_ratio"] = np.where(total_obs > 0, C / total_obs, 0.0)
 
     # --- raw score ---
-    raw = N_eff * U_eff * gap
+    raw = np.log1p(U_non_cnc) * np.power(df["coverage_gap"].values, gap_power)
     raw = np.where(np.isfinite(raw), raw, 0.0)
     raw = np.clip(raw, 0.0, None)
     df["raw_priority_score"] = raw.astype(float)
@@ -88,7 +79,6 @@ def calculate_priority_score(hex_stats: gpd.GeoDataFrame, gap_power: float = 1.7
     df["priority_score_norm"] = (df["priority_score"] / 100.0).astype(float)
 
     return df
-
 
 def _compute_best_time_bucket_per_hex(
     joined: gpd.GeoDataFrame,
@@ -171,6 +161,7 @@ def generate_recommendations(
     obs_gdf: gpd.GeoDataFrame,
     top_n: int = 10,
     *,
+    parks_gdf: gpd.GeoDataFrame,
     cnc_flag_col: str = "during_competition",
     iconic_col: str = "iconic_taxon_name",
     radius_km: float = 2.0,
@@ -192,6 +183,9 @@ def generate_recommendations(
 
     # Work in 4326 for geometry + centers
     hex_top = scored_hex_gdf.to_crs("EPSG:4326").sort_values("priority_score", ascending=False).head(top_n).reset_index(drop=True)
+
+    hex_top = enrich_hex_with_nearest_places(hex_top, greenery_gdf=parks_gdf, top_n=None) #fills each hex with top 3 closest areas
+
 
     taxon_col = "taxon_id"  # adjust if your column name differs
     common_col = "common_name"   # CHANGE if your column is named differently
@@ -320,7 +314,8 @@ def generate_recommendations(
             "cnc_observation_count": cnc_count,
             "habitat": row.get("habitat", None),
             "non_cnc_unique_species": int(row.get("non_cnc_unique_species", 0)),
-            "cnc_unique_species": int(row.get("cnc_unique_species", 0))          
+            "cnc_unique_species": int(row.get("cnc_unique_species", 0)),
+            "top_places": row.get("top_places") or []
         })
 
     return recs

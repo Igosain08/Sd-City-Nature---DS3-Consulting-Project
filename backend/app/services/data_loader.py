@@ -7,6 +7,7 @@ from typing import Optional
 from pathlib import Path
 import os
 from functools import lru_cache
+import h3
 
 # Module-level cache
 _cached_data: Optional[gpd.GeoDataFrame] = None
@@ -18,15 +19,6 @@ class DataLoader:
     
     @staticmethod
     def load_observations(city: str = "San Diego") -> gpd.GeoDataFrame:
-        """
-        Load iNaturalist observations from CSV and convert to GeoDataFrame
-        
-        Args:
-            city: City name ("San Diego", "San Antonio", "Los Angeles")
-            
-        Returns:
-            GeoDataFrame with observation data
-        """
         df = pd.read_csv("data/cleaned_finalized_dataset_final.csv.zip")
         gdf = gpd.GeoDataFrame(
             df,
@@ -34,6 +26,13 @@ class DataLoader:
             crs="EPSG:4326"
         )
         
+        # compute once at load time so hex observation lookups are instant
+        gdf["hex7"] = gdf.apply(
+            lambda row: h3.latlng_to_cell(row.geometry.y, row.geometry.x, 7)
+            if row.geometry is not None else None,
+            axis=1
+        )
+
         return gdf
     
     @staticmethod
