@@ -152,11 +152,10 @@ class TopSpeciesItem2(BaseModel):
 
 
 class CityTaxonItem(BaseModel):
-    """Observation count per taxon group for one city (cross-city comparison)."""
+    """Observation count per taxon group across comparison cities (CNC 2025).
+    Uses model_config extra='allow' so any city column from the CSV is accepted."""
+    model_config = {"extra": "allow"}
     taxon_group: str
-    san_diego: int
-    san_antonio: int
-    los_angeles: int
 
 
 class CityTopSpeciesItem(BaseModel):

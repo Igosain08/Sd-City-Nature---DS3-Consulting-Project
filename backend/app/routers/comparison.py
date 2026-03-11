@@ -27,21 +27,31 @@ _DATA_DIR = Path(__file__).resolve().parent.parent.parent / "data"
 
 router = APIRouter(prefix="/comparison", tags=["comparison"])
 
-# City centers for map view (lat, lng); optional secondary cluster centers (e.g. parks) for realistic spread
 CITY_CENTERS = {
     "San Diego": (32.7157, -117.1611),
+    "La Paz": (-16.5000, -68.1500),
     "San Antonio": (29.4241, -98.4936),
-    "Los Angeles": (34.0522, -118.2437),
+    "Cochabamba": (-17.3895, -66.1568),
+    "Ostrava": (49.8209, 18.2625),
+    "Dallas-Fort Worth": (32.7767, -96.7970),
+    "Hong Kong": (22.3193, 114.1694),
+    "Graz": (47.0707, 15.4395),
+    "San Francisco Bay Area": (37.7749, -122.4194),
+    "Washington DC": (38.9072, -77.0369),
 }
-# Offsets for secondary clusters (lat, lng) to mimic parks/neighborhoods — irregular distribution
+
 CITY_CLUSTERS = {
     "San Diego": [(32.74, -117.08), (32.68, -117.25), (32.63, -117.09)],
     "San Antonio": [(29.46, -98.52), (29.38, -98.45), (29.51, -98.41)],
-    "Los Angeles": [(34.08, -118.36), (34.02, -118.20), (34.14, -118.25)],
+    "La Paz": [(-16.52, -68.12), (-16.48, -68.18), (-16.54, -68.10)],
+    "Dallas-Fort Worth": [(32.80, -96.82), (32.73, -97.05), (32.85, -96.70)],
+    "Hong Kong": [(22.28, 114.15), (22.35, 114.22), (22.38, 114.10)],
 }
 
-
-_COMPARISON_CITIES = ["San Diego", "San Antonio", "Los Angeles"]
+_COMPARISON_CITIES = [
+    "San Diego", "La Paz", "San Antonio", "Cochabamba", "Ostrava",
+    "Dallas-Fort Worth", "Hong Kong", "Graz", "San Francisco Bay Area", "Washington DC",
+]
 
 
 def _load_cnc_stats() -> list[dict]:
@@ -130,11 +140,8 @@ async def get_city_quality(
         return out
     except Exception:
         pass
-    # Dummy fallback
     return [
-        CityQualityResponse(city="San Diego", total=45230, research_count=32000, needs_id_count=8000, casual_count=5230, research_pct=70.8),
-        CityQualityResponse(city="San Antonio", total=38104, research_count=25600, needs_id_count=7500, casual_count=5004, research_pct=67.2),
-        CityQualityResponse(city="Los Angeles", total=67521, research_count=47200, needs_id_count=12000, casual_count=8321, research_pct=69.9),
+        CityQualityResponse(city="San Diego", total=32355, research_count=22600, needs_id_count=6000, casual_count=3755, research_pct=69.8),
     ]
 
 
@@ -165,9 +172,7 @@ async def get_city_contributors(
     except Exception:
         pass
     return [
-        CityContributorResponse(city="San Diego", user_count=3421, total_observations=45230, mean_obs_per_user=13.2),
-        CityContributorResponse(city="San Antonio", user_count=2893, total_observations=38104, mean_obs_per_user=13.2),
-        CityContributorResponse(city="Los Angeles", user_count=5247, total_observations=67521, mean_obs_per_user=12.9),
+        CityContributorResponse(city="San Diego", user_count=1304, total_observations=32355, mean_obs_per_user=24.8),
     ]
 
 
@@ -204,9 +209,7 @@ async def get_city_captive_wild(
     except Exception:
         pass
     return [
-        CityCaptiveWildResponse(city="San Diego", wild_count=41000, captive_count=4230, wild_pct=90.6, captive_pct=9.4),
-        CityCaptiveWildResponse(city="San Antonio", wild_count=34500, captive_count=3604, wild_pct=90.5, captive_pct=9.5),
-        CityCaptiveWildResponse(city="Los Angeles", wild_count=60800, captive_count=6721, wild_pct=90.0, captive_pct=10.0),
+        CityCaptiveWildResponse(city="San Diego", wild_count=29120, captive_count=3235, wild_pct=90.0, captive_pct=10.0),
     ]
 
 
@@ -399,7 +402,7 @@ async def get_top_species(
 @router.get("/city-taxon-breakdown", response_model=List[CityTaxonItem])
 async def get_city_taxon_breakdown():
     """
-    Observation count per taxon group for SD, San Antonio, and LA (CNC 2025).
+    Observation count per taxon group for all comparison cities (CNC 2025).
     Data loaded from collected CSV (originally from iNaturalist API).
     """
     rows = _load_city_taxon()

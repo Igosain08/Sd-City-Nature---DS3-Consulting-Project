@@ -113,12 +113,11 @@ export interface TopSpeciesComparison {
   taxon_group: string;
 }
 
-/** Observation count per taxon group across all three cities. */
+/** Observation count per taxon group across comparison cities (CNC 2025).
+ *  City columns are dynamic (keyed by snake_case city name). */
 export interface CityTaxonItem {
   taxon_group: string;
-  san_diego: number;
-  san_antonio: number;
-  los_angeles: number;
+  [cityKey: string]: string | number;
 }
 
 /** A top species for a specific city. */
