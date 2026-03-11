@@ -501,78 +501,84 @@ export function CityComparison() {
         <div className="border-t-2 border-slate-200 pt-8">
           <h2 className="text-2xl font-bold text-gray-900">Actionable Insights — Improving SD's {tabLabel} Ranking</h2>
           <p className="text-gray-600 mt-1 max-w-3xl">
-            Specific strategies drawn from how the top 5 outperform San Diego in {tabLabel.toLowerCase()}.
+            Suggestions for how San Diego could close the gap with the top-ranked cities in {tabLabel.toLowerCase()}.
           </p>
         </div>
 
         {tab === 'observations' && (
           <div className="grid grid-cols-1 md:grid-cols-2 gap-5 mt-6">
-            <InsightCard num={1} title="Replicate San Antonio's Exponential Mobilization" colorHex="#8b5cf6">
-              San Antonio grew from 20K to 135K observations in 3 years (+571%). Their secret: strong coordination between Texas Parks & Wildlife,
-              local Audubon chapters, and a charismatic urban biologist who became the public face of the effort.
-              <strong> SD should appoint a visible "CNC Champion"</strong> and partner with NRS, SD Zoo, and Audubon to run coordinated field events across all 4 days.
+            <InsightCard num={1} title="Position NRS as San Diego's CNC Hub" colorHex="#8b5cf6">
+              San Antonio jumped from 20K to 135K observations in 3 years (+571%), and Cochabamba went from 4K to 110K.
+              That kind of explosive growth suggests strong central coordination.
+              <strong> NRS is uniquely positioned to serve as San Diego's CNC hub</strong> — coordinating field events across reserves,
+              rallying partner organizations (SD Zoo, Audubon, SDNHM), and providing the scientific credibility to anchor the campaign.
             </InsightCard>
             <InsightCard num={2} title="Boost Per-Person Output to 50+" colorHex="#f59e0b">
-              SD averages ~25 observations per participant. La Paz and San Antonio average ~45-49.
-              <strong> Create "50-Observation Challenge" badges</strong> and guided routes at Torrey Pines, Mission Trails, and Balboa Park
-              that walk participants through 50+ species systematically.
+              SD averages ~25 observations per participant, while La Paz and San Antonio average ~45-49.
+              <strong> NRS could design guided "50-Observation Challenge" routes</strong> across its reserves — Torrey Pines, Scripps Coastal, Elliott Chaparral —
+              that walk participants through 50+ species systematically using reserve expertise.
             </InsightCard>
-            <InsightCard num={3} title="Engage Schools and Universities" colorHex="#0ea5e9">
-              Cochabamba went from 4K to 110K in 3 years by mobilizing universities. With UCSD, SDSU, and USD in the metro area,
-              <strong> integrate CNC into spring biology lab assignments</strong> — even 500 students doing 30 observations each adds 15K observations.
+            <InsightCard num={3} title="Mobilize Schools and Universities" colorHex="#0ea5e9">
+              Cochabamba went from 4K to 110K observations with a metro area smaller than San Diego's. With UCSD, SDSU, and USD nearby,
+              <strong> NRS could leverage its UC connections to integrate CNC into spring biology lab assignments</strong> — even 500 students doing 30 observations each adds 15K.
             </InsightCard>
             <InsightCard num={4} title="Extend Coverage Beyond Parks" colorHex="#10b981">
-              Ostrava achieved 100K observations from a mid-size Czech city through neighborhood-level organizing.
-              <strong> Recruit observers in underserved communities</strong> — National City, Chula Vista, El Cajon — where biodiversity data gaps are largest.
+              Ostrava, a mid-size Czech city, reached 100K observations — 3x San Diego's total.
+              <strong> NRS reserves span diverse habitats across the county</strong> — coordinating CNC events at undervisited reserves
+              and recruiting observers in nearby communities (National City, Chula Vista, El Cajon) could unlock significant new observation volume.
             </InsightCard>
           </div>
         )}
 
         {tab === 'species' && (
           <div className="grid grid-cols-1 md:grid-cols-2 gap-5 mt-6">
-            <InsightCard num={1} title="Target Under-Sampled Taxa" colorHex="#10b981">
-              Cochabamba documented 7,134 species — 2.5x SD's 2,844. Hong Kong got 4,970 species with a highly balanced mix of plants, insects, and arachnids.
-              <strong> Organize taxon-focused events</strong>: night insect walks, tidepool forays, and fungal foraging meetups to push beyond plants.
+            <InsightCard num={1} title="Leverage NRS Habitat Diversity" colorHex="#10b981">
+              Cochabamba documented 4,534 species and Hong Kong 4,970 — both well above SD's 2,844. SD's species count skews heavily toward plants.
+              <strong> NRS manages reserves across coastal, chaparral, wetland, and montane ecosystems</strong> — organizing taxon-focused BioBlitzes
+              (night insect walks, tidepool forays, fungal foraging) at different reserves could push species counts well beyond plants.
             </InsightCard>
-            <InsightCard num={2} title="Learn from Graz's Expert-Led Approach" colorHex="#84cc16">
+            <InsightCard num={2} title="Recruit Expert-Led Survey Teams" colorHex="#84cc16">
               Graz documents 4,901 species with only 504 observers — 9.7 species per person vs SD's 2.18.
-              Their strategy: expert naturalists leading targeted surveys of specific habitats.
-              <strong> Recruit expert identifiers</strong> from SDNHM and UCSD to lead small, focused survey teams in under-explored habitats.
+              <strong> NRS could recruit expert identifiers from its researcher network and UCSD faculty</strong> to lead small, focused survey teams
+              in under-explored reserve habitats where rare and unique species are most likely.
             </InsightCard>
-            <InsightCard num={3} title="Cover More Habitat Types" colorHex="#0ea5e9">
-              San Diego County has extraordinary habitat diversity (coastal, chaparral, desert, montane) but most CNC observations cluster in urban parks.
-              <strong> Organize drives to Anza-Borrego edge, Laguna Mountains, and coastal wetlands</strong> where unique species are more likely.
+            <InsightCard num={3} title="Open Reserves for CNC Access" colorHex="#0ea5e9">
+              San Diego County has extraordinary habitat diversity but most CNC observations cluster in urban parks.
+              <strong> NRS could open select reserves for guided CNC access</strong> during the challenge, giving participants entry to
+              Anza-Borrego edge, Laguna Mountains, and coastal wetland habitats that aren't otherwise easily accessible.
             </InsightCard>
-            <InsightCard num={4} title="Improve Identification Rates" colorHex="#8b5cf6">
-              Hong Kong achieves 45%+ research-grade rate through active identifier recruitment. More confirmed IDs means more species counted.
-              <strong> Host a parallel "ID-a-thon"</strong> during identification week to convert "needs ID" observations into confirmed species.
+            <InsightCard num={4} title="Lead an ID-a-thon During Identification Week" colorHex="#8b5cf6">
+              Many observations sit at "needs ID" and never get confirmed, meaning species go uncounted.
+              <strong> NRS could host a parallel "ID-a-thon"</strong> with reserve managers and UCSD researchers
+              to convert backlogged observations into confirmed species — directly boosting SD's species ranking.
             </InsightCard>
-                </div>
+          </div>
         )}
 
         {tab === 'people' && (
           <div className="grid grid-cols-1 md:grid-cols-2 gap-5 mt-6">
-            <InsightCard num={1} title="Build on La Paz's Community Model" colorHex="#ef4444">
-              La Paz mobilized 3,321 people — 2.5x San Diego's 1,304. They did it through partnerships with municipal government, schools, and
-              indigenous community organizations.
-              <strong> Partner with SD County, City Parks & Rec, and community centers</strong> in every neighborhood to create hyper-local events.
+            <InsightCard num={1} title="NRS as the Convener of a City-Wide Coalition" colorHex="#ef4444">
+              La Paz mobilized 3,341 participants and Cochabamba 3,251 — both 2.5x San Diego's 1,304.
+              <strong> NRS could position itself as the convener</strong> — partnering with SD County, City Parks & Rec, and community centers
+              to create hyper-local events across every neighborhood, using NRS's credibility to bring organizations to the table.
             </InsightCard>
-            <InsightCard num={2} title="Leverage the Bay Area Playbook" colorHex="#6366f1">
-              San Francisco Bay Area recruited 3,161 people by leveraging its dense network of nature organizations (Cal Academy, Audubon, Sierra Club).
-              <strong> Coordinate a "San Diego Nature Alliance"</strong> — bring SD Zoo, Birch Aquarium, SDNHM, local Audubon, and NRS under one CNC umbrella campaign.
+            <InsightCard num={2} title="Build a San Diego Nature Alliance Under NRS" colorHex="#6366f1">
+              SF Bay Area recruited 3,161 participants, and San Antonio 2,755. SD has a similarly dense network of nature organizations.
+              <strong> NRS could lead a "San Diego Nature Alliance"</strong> — bringing SD Zoo, Birch Aquarium, SDNHM, and local Audubon chapters
+              under one CNC umbrella with shared branding, schedules, and outreach coordinated through NRS.
             </InsightCard>
-            <InsightCard num={3} title="Tap Into Washington DC's Institutional Strategy" colorHex="#0d9488">
-              DC mobilized 2,506 people through Smithsonian, National Park Service, and government agencies.
-              <strong> Engage military bases (Camp Pendleton, MCAS Miramar)</strong>, federal land managers, and tribal communities
-              who manage significant biodiversity areas in San Diego County.
+            <InsightCard num={3} title="Engage Institutional and Federal Partners" colorHex="#0d9488">
+              Washington DC reached 2,506 participants — nearly double San Diego's count.
+              <strong> NRS's position within the UC system gives it unique access</strong> to engage military bases (Camp Pendleton, MCAS Miramar),
+              federal land managers, and tribal communities who manage significant biodiversity areas in SD County.
             </InsightCard>
-            <InsightCard num={4} title="Make It Social and Accessible" colorHex="#f97316">
-              Cochabamba grew participants from 214 to 3,251 in 3 years (+1,419%). Key: making it a social event, not a science project.
-              <strong> Create family-friendly "Nature Scavenger Hunt" events</strong> at accessible locations with food trucks, prizes, and photo contests
-              to attract first-time participants.
+            <InsightCard num={4} title="Make Reserves Social and Accessible" colorHex="#f97316">
+              Cochabamba grew from 214 to 3,251 participants in 3 years (+1,419%). Framing CNC as a fun social event could attract first-timers.
+              <strong> NRS could host family-friendly "Nature Scavenger Hunt" events</strong> at accessible reserve locations
+              with food trucks, prizes, and photo contests — turning reserves into welcoming entry points for new participants.
             </InsightCard>
-            </div>
-          )}
+          </div>
+        )}
       </section>
 
       {/* ============================================================ */}
