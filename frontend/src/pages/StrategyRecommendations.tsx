@@ -305,7 +305,8 @@ export function StrategyRecommendations() {
             error={errorZones}
           >
             {/* ✅ match map height, scroll inside */}
-            <div className="flex flex-col min-w-0">
+            <div className="flex flex-col min-w-0" style={{ maxHeight: MAP_H, overflowY: "auto" }}>
+
 
               {activeZone ? (
                 <div className="flex flex-col gap-4 min-w-0">
