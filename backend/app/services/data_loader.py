@@ -84,6 +84,9 @@ class DataLoader:
                 rename["community"] = "city"
             df = df.rename(columns=rename)
 
+            if "iconic_taxon_name" not in df.columns and "taxon_group" in df.columns:
+                df["iconic_taxon_name"] = df["taxon_group"]
+
             # Ensure required columns exist; fill missing from alternate column names or defaults
             fallbacks = [
                 ("species_name", "scientific_name"),
@@ -143,10 +146,10 @@ class DataLoader:
             print(f"DataLoader: Loaded {len(gdf):,} observations from {path}")
 
             gdf["hex7"] = gdf.apply(
-                lambda row: h3.latlng_to_cell(row.geometry.y, row.geometry.x, 7)
-                if row.geometry is not None else None,
-                axis=1
-            )
+            lambda row: h3.latlng_to_cell(row.geometry.y, row.geometry.x, 7)
+            if row.geometry is not None else None,
+            axis=1
+        )
             return gdf
 
         print("DataLoader: No cleaned_finalized_dataset found, using dummy data")

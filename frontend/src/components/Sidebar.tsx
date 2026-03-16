@@ -1,5 +1,5 @@
 import { NavLink } from 'react-router-dom';
-import { BarChart3, MapPin, GitCompare, Target } from 'lucide-react';
+import { BarChart3, GitCompare, Target } from 'lucide-react';
 
 /**
  * Left sidebar navigation component
@@ -10,11 +10,6 @@ export function Sidebar() {
       to: '/',
       icon: BarChart3,
       label: 'Exploratory Analysis',
-    },
-    {
-      to: '/hotspots',
-      icon: MapPin,
-      label: 'Hotspot & Gap Analysis',
     },
     {
       to: '/comparison',

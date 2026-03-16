@@ -7,9 +7,7 @@ interface UseApiReturn<T> {
   refetch: () => void;
 }
 
-const API_BASE = typeof import.meta !== 'undefined' && import.meta.env?.VITE_API_URL
-  ? import.meta.env.VITE_API_URL.replace(/\/$/, '')
-  : 'http://localhost:8000';
+const API_BASE = '';
 
 /**
  * Custom hook for fetching data from the FastAPI backend

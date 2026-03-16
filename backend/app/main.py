@@ -3,10 +3,14 @@ FastAPI application entry point for SD City Nature Challenge backend
 """
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
+from starlette.requests import Request
 from app.config import API_PREFIX, CORS_ORIGINS
 from app.routers import exploratory, hotspots, comparison, strategy
 from app.services.data_loader import DataLoader
 
+import logging
+logging.basicConfig(level=logging.DEBUG)
 
 # Initialize FastAPI app
 app = FastAPI(
@@ -15,9 +19,7 @@ app = FastAPI(
     version="1.0.0"
 )
 
-# Configure CORS to allow frontend access from specified origins Aka Royce's chosen origins
-# this would change if we deploy the frontend to a different domain or hosting service
-
+# Configure CORS
 app.add_middleware(
     CORSMiddleware,
     allow_origins=[
@@ -28,6 +30,12 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+@app.exception_handler(Exception)
+async def global_exception_handler(request: Request, exc: Exception):
+    import traceback
+    traceback.print_exc()
+    return JSONResponse(status_code=500, content={"detail": str(exc)})
 
 # Register routers
 app.include_router(exploratory.router, prefix=API_PREFIX)

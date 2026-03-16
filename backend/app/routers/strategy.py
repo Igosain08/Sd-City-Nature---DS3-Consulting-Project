@@ -32,40 +32,36 @@ SD_GREENERY = BACKEND_DIR / "data" / "greenery.geojson"
 
 sd_greenery = gpd.read_file(SD_GREENERY, engine="pyogrio", on_invalid="ignore")
 
-@router.get("/priority-zones", response_model=PriorityZonesBundle)
+@router.get("/priority-zones")
 async def get_priority_zones():
-    """
-    Get priority zones for targeted observation efforts across full San Diego County
-    Returns ALL hexes with priority scores (including zero-observation areas)
-    """
-    # Load observations
-    gdf = DataLoader.get_cached_data()
+    try:
+        gdf = DataLoader.get_cached_data()
 
-    fill_boundary = build_fill_boundary(sd_boundary, sd_coastal)
+        fill_boundary = build_fill_boundary(sd_boundary, sd_coastal)
 
-    fill_boundary = sd_boundary.to_crs("EPSG:26911").copy()
-    fill_boundary["geometry"] = fill_boundary.buffer(10000)
-    fill_boundary = fill_boundary.to_crs(sd_boundary.crs)
-    
-    
-    hex_stats = hex_bin_observations(
-    gdf=gdf,
-    county_boundary=fill_boundary,
-    resolution=7,
-    min_non_cnc=30,
-    use_existing_cnc_flag=True,  # you already have during_competition
-    )
+        fill_boundary = sd_boundary.to_crs("EPSG:26911").copy()
+        fill_boundary["geometry"] = fill_boundary.buffer(10000)
+        fill_boundary = fill_boundary.to_crs(sd_boundary.crs)
 
-    hex_scored = calculate_priority_score(hex_stats)
+        hex_stats = hex_bin_observations(
+            gdf=gdf,
+            county_boundary=fill_boundary,
+            resolution=7,
+            min_non_cnc=30,
+            use_existing_cnc_flag=True,
+        )
 
-    
+        hex_scored = calculate_priority_score(hex_stats)
 
-    hexs_finalized = generate_recommendations(hex_scored, gdf, top_n=len(hex_scored), parks_gdf=sd_greenery)
+        hexs_finalized = generate_recommendations(hex_scored, gdf, top_n=len(hex_scored), parks_gdf=sd_greenery)
 
-    top10 = hexs_finalized
+        top10 = hexs_finalized
 
-    return {"hexes": hexs_finalized, "top": top10}
-
+        return {"hexes": hexs_finalized, "top": top10}
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        raise
 
 @router.get("/hex-observations/{hex_id}")
 async def get_hex_observations(
