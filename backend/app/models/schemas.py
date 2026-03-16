@@ -87,6 +87,100 @@ class CityStatsResponse(BaseModel):
     species_per_observer: float
 
 
+class ComparisonMarkerResponse(BaseModel):
+    """Single marker for comparison map (lat, lng, optional popup)."""
+    lat: float
+    lng: float
+    popup: Optional[str] = None
+
+
+class CitySpatialResponse(BaseModel):
+    """Per-city spatial data for comparison maps (center + sample markers)."""
+    city: str
+    center_lat: float
+    center_lng: float
+    markers: List[ComparisonMarkerResponse]
+
+
+class CityQualityResponse(BaseModel):
+    """Research-grade and quality breakdown by city."""
+    city: str
+    total: int
+    research_count: int
+    needs_id_count: int
+    casual_count: int
+    research_pct: float
+
+
+class CityContributorResponse(BaseModel):
+    """Who contributes the most: mean observations per user by city."""
+    city: str
+    user_count: int
+    total_observations: int
+    mean_obs_per_user: float
+
+
+class CityCaptiveWildResponse(BaseModel):
+    """Captive vs wild share by city (Exploratory-style; only wild counts toward CNC)."""
+    city: str
+    wild_count: int
+    captive_count: int
+    wild_pct: float
+    captive_pct: float
+
+
+class CompetitionSplitResponse(BaseModel):
+    """Comparison of metrics during vs outside the competition window."""
+    window: str  # "competition" | "non_competition"
+    observations: int
+    unique_species: int
+    participants: int
+    research_pct: float
+    species_per_observation: float
+
+
+class CommunityRankItem(BaseModel):
+    """Community ranked by observation count with biodiversity yield."""
+    community: str
+    observations: int
+    unique_species: int
+    participants: int
+    species_per_observation: float
+
+
+class TaxonComparisonItem(BaseModel):
+    """Taxon group observation counts, optionally split by competition window."""
+    taxon_group: str
+    competition_count: int
+    non_competition_count: int
+    total: int
+
+
+class TopSpeciesItem2(BaseModel):
+    """A frequently observed species with observation count and common name."""
+    scientific_name: str
+    common_name: str
+    count: int
+    taxon_group: str
+
+
+class CityTaxonItem(BaseModel):
+    """Observation count per taxon group across comparison cities (CNC 2025).
+    Uses model_config extra='allow' so any city column from the CSV is accepted."""
+    model_config = {"extra": "allow"}
+    taxon_group: str
+
+
+class CityTopSpeciesItem(BaseModel):
+    """A top species for a specific city."""
+    city: str
+    rank: int
+    scientific_name: str
+    common_name: str
+    count: int
+    taxon_group: str
+
+
 class PriorityZoneResponse(BaseModel):
     """Priority observation zone recommendation"""
     zone_id: str

@@ -1,0 +1,101 @@
+city,rank,scientific_name,common_name,count,taxon_group
+San Diego,1,Eriogonum fasciculatum,California Buckwheat,282,Plantae
+San Diego,2,Acmispon glaber,deerweed,272,Plantae
+San Diego,3,Encelia californica,California brittlebush,268,Plantae
+San Diego,4,Marah macrocarpa,Chilicothe,261,Plantae
+San Diego,5,Diplacus puniceus,red bush monkeyflower,234,Plantae
+San Diego,6,Haemorhous mexicanus,House Finch,225,Aves
+San Diego,7,Artemisia californica,California sagebrush,216,Plantae
+San Diego,8,Rhus integrifolia,lemonade berry,208,Plantae
+San Diego,9,Anas platyrhynchos,Mallard,191,Aves
+San Diego,10,Sisyrinchium bellum,western blue-eyed grass,181,Plantae
+La Paz,1,Malva assurgentiflora,Island Mallow,645,Plantae
+La Paz,2,Opuntia ficus-indica,Indian fig opuntia,637,Plantae
+La Paz,3,Veronica speciosa,New Zealand hebe,592,Plantae
+La Paz,4,Viguiera pazensis,Viguiera pazensis,546,Plantae
+La Paz,5,Corryocactus melanotrichus,Corryocactus melanotrichus,542,Plantae
+La Paz,6,Agave americana,American century plant,513,Plantae
+La Paz,7,Acacia melanoxylon,blackwood,505,Plantae
+La Paz,8,Vinca major,greater periwinkle,504,Plantae
+La Paz,9,Zenaida auriculata,Eared Dove,476,Aves
+La Paz,10,Medicago polymorpha,bur clover,473,Plantae
+San Antonio,1,Calyptocarpus vialis,straggler daisy,953,Plantae
+San Antonio,2,Zephyranthes drummondii,Drummond's rain lily,917,Plantae
+San Antonio,3,Glandularia bipinnatifida,Dakota mock vervain,902,Plantae
+San Antonio,4,Solanum elaeagnifolium,silverleaf nightshade,888,Plantae
+San Antonio,5,Diospyros texana,Texas Persimmon,885,Plantae
+San Antonio,6,Wedelia hispida,Texas creeping-oxeye,831,Plantae
+San Antonio,7,Ratibida columnifera,upright prairie coneflower,779,Plantae
+San Antonio,8,Berberis trifoliolata,Agarita,768,Plantae
+San Antonio,9,Smilax bona-nox,saw greenbrier,737,Plantae
+San Antonio,10,Salvia farinacea,Mealy Blue Sage,737,Plantae
+Cochabamba,1,Hibiscus × rosa-sinensis,Tricolor Hibiscus,708,Plantae
+Cochabamba,2,Sansevieria trifasciata,Snake Plant,505,Plantae
+Cochabamba,3,Euphorbia pulcherrima,Poinsettia,470,Plantae
+Cochabamba,4,Ipomoea purpurea,common morning-glory,446,Plantae
+Cochabamba,5,Erythroxylum coca,coca,328,Plantae
+Cochabamba,6,Opuntia ficus-indica,Indian fig opuntia,304,Plantae
+Cochabamba,7,Coleus scutellarioides,Coleus,303,Plantae
+Cochabamba,8,Salvia splendens,Scarlet Sage,295,Plantae
+Cochabamba,9,Euphorbia milii,Crown-of-Thorns,294,Plantae
+Cochabamba,10,Columba livia,Rock Pigeon,276,Aves
+Ostrava,1,Bellis perennis,Lawn daisy,2334,Plantae
+Ostrava,2,Taraxacum officinale,common dandelion,2146,Plantae
+Ostrava,3,Urtica dioica,great stinging nettle,2004,Plantae
+Ostrava,4,Glechoma hederacea,ground-ivy,1890,Plantae
+Ostrava,5,Acer platanoides,Norway maple,1326,Plantae
+Ostrava,6,Veronica chamaedrys,Germander Speedwell,946,Plantae
+Ostrava,7,Ranunculus acris,meadow buttercup,772,Plantae
+Ostrava,8,Alliaria petiolata,garlic mustard,769,Plantae
+Ostrava,9,Chelidonium majus,Greater celandine,746,Plantae
+Ostrava,10,Trifolium pratense,Red Clover,702,Plantae
+Dallas-Fort Worth,1,Oenothera speciosa,Pinkladies,573,Plantae
+Dallas-Fort Worth,2,Glandularia bipinnatifida,Dakota mock vervain,440,Plantae
+Dallas-Fort Worth,3,Toxicodendron radicans,eastern poison ivy,391,Plantae
+Dallas-Fort Worth,4,Cornus drummondii,roughleaf dogwood,364,Plantae
+Dallas-Fort Worth,5,Asclepias viridis,green antelopehorns,358,Plantae
+Dallas-Fort Worth,6,Asclepias asperula,Antelopehorn Milkweed,357,Plantae
+Dallas-Fort Worth,7,Gaillardia pulchella,firewheel,355,Plantae
+Dallas-Fort Worth,8,Castilleja indivisa,Texas Paintbrush,348,Plantae
+Dallas-Fort Worth,9,Engelmannia peristenia,Engelmann daisy,337,Plantae
+Dallas-Fort Worth,10,Apis mellifera,Western Honey Bee,325,Insecta
+Hong Kong,1,Passer montanus,Eurasian Tree Sparrow,243,Aves
+Hong Kong,2,Spilopelia chinensis,Spotted Dove,230,Aves
+Hong Kong,3,Oxalis debilis,Largeflower pink-sorrel,206,Plantae
+Hong Kong,4,Bidens alba,White beggarticks,200,Plantae
+Hong Kong,5,Columba livia,Rock Pigeon,188,Aves
+Hong Kong,6,Hibiscus × rosa-sinensis,Tricolor Hibiscus,188,Plantae
+Hong Kong,7,Pycnonotus jocosus,Red-whiskered Bulbul,170,Aves
+Hong Kong,8,Gracupica nigricollis,Black-collared Starling,170,Aves
+Hong Kong,9,Apis cerana,Asian Honey Bee,139,Insecta
+Hong Kong,10,Ficus microcarpa,Chinese banyan,132,Plantae
+Graz,1,Ajuga reptans,carpet bugle,505,Plantae
+Graz,2,Helix pomatia,Roman Snail,465,Mollusca
+Graz,3,Lamium galeobdolon,yellow archangel,311,Plantae
+Graz,4,Chelidonium majus,Greater celandine,294,Plantae
+Graz,5,Urtica dioica,great stinging nettle,293,Plantae
+Graz,6,Hedera helix,common ivy,281,Plantae
+Graz,7,Alliaria petiolata,garlic mustard,278,Plantae
+Graz,8,Galium aparine,catchweed bedstraw,252,Plantae
+Graz,9,Fragaria vesca,woodland strawberry,247,Plantae
+Graz,10,Glechoma hederacea,ground-ivy,230,Plantae
+San Francisco Bay Area,1,Eschscholzia californica,California poppy,362,Plantae
+San Francisco Bay Area,2,Diplacus aurantiacus,orange bush monkeyflower,319,Plantae
+San Francisco Bay Area,3,Sisyrinchium bellum,western blue-eyed grass,285,Plantae
+San Francisco Bay Area,4,Euphydryas chalcedona,Variable Checkerspot,277,Insecta
+San Francisco Bay Area,5,Achillea millefolium,common yarrow,272,Plantae
+San Francisco Bay Area,6,Toxicodendron diversilobum,Pacific poison oak,259,Plantae
+San Francisco Bay Area,7,Nycticorax nycticorax,Black-crowned Night Heron,258,Aves
+San Francisco Bay Area,8,Aesculus californica,California buckeye,242,Plantae
+San Francisco Bay Area,9,Quercus agrifolia,coast live oak,230,Plantae
+San Francisco Bay Area,10,Triteleia laxa,Ithuriel's Spear,227,Plantae
+Washington DC,1,Parthenocissus quinquefolia,Virginia creeper,416,Plantae
+Washington DC,2,Podophyllum peltatum,mayapple,410,Plantae
+Washington DC,3,Toxicodendron radicans,eastern poison ivy,403,Plantae
+Washington DC,4,Malacosoma americana,Eastern Tent Caterpillar Moth,369,Insecta
+Washington DC,5,Polystichum acrostichoides,Christmas fern,347,Plantae
+Washington DC,6,Lonicera maackii,Amur honeysuckle,345,Plantae
+Washington DC,7,Alliaria petiolata,garlic mustard,312,Plantae
+Washington DC,8,Claytonia virginica,Virginia Springbeauty,307,Plantae
+Washington DC,9,Lycorma delicatula,Spotted Lanternfly,288,Insecta
+Washington DC,10,Prunus serotina,black cherry,279,Plantae

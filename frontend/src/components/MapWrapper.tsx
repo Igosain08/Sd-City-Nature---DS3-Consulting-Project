@@ -1,9 +1,8 @@
-import { MapContainer, TileLayer, Marker, Popup, GeoJSON } from 'react-leaflet';
+import { MapContainer, TileLayer, Marker, CircleMarker, Popup, GeoJSON } from 'react-leaflet';
 import { LatLngExpression } from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import { MarkerData, HeatmapPoint } from '../types';
 
-// Fix for default marker icon issue in react-leaflet
 import L from 'leaflet';
 import icon from 'leaflet/dist/images/marker-icon.png';
 import iconShadow from 'leaflet/dist/images/marker-shadow.png';
@@ -24,6 +23,8 @@ interface MapWrapperProps {
   center?: LatLngExpression;
   zoom?: number;
   height?: string;
+  /** When set, renders colored CircleMarkers instead of pin icons */
+  markerColor?: string;
 }
 
 /**
@@ -33,9 +34,10 @@ export function MapWrapper({
   markers = [],
   geoJsonLayer,
   heatmapData: _heatmapData = [],
-  center = [32.7157, -117.1611], // San Diego
+  center = [32.7157, -117.1611],
   zoom = 10,
   height = '500px',
+  markerColor,
 }: MapWrapperProps) {
   return (
     <div style={{ height, width: '100%' }} className="rounded-lg overflow-hidden">
@@ -50,17 +52,24 @@ export function MapWrapper({
           url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
         />
 
-        {/* Render markers */}
-        {markers.map((marker, idx) => (
-          <Marker key={idx} position={[marker.lat, marker.lng]}>
-            {marker.popup && <Popup>{marker.popup}</Popup>}
-          </Marker>
-        ))}
+        {markers.map((marker, idx) =>
+          markerColor ? (
+            <CircleMarker
+              key={idx}
+              center={[marker.lat, marker.lng]}
+              radius={5}
+              pathOptions={{ color: markerColor, fillColor: markerColor, fillOpacity: 0.55, weight: 1 }}
+            >
+              {marker.popup && <Popup>{marker.popup}</Popup>}
+            </CircleMarker>
+          ) : (
+            <Marker key={idx} position={[marker.lat, marker.lng]}>
+              {marker.popup && <Popup>{marker.popup}</Popup>}
+            </Marker>
+          )
+        )}
 
-        {/* Render GeoJSON layer */}
         {geoJsonLayer && <GeoJSON data={geoJsonLayer} />}
-
-        {/* TODO: Add heatmap layer support if needed */}
       </MapContainer>
     </div>
   );
