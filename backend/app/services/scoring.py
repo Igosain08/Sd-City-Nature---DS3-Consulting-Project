@@ -2,113 +2,332 @@
 Priority zone scoring and recommendation generation
 """
 import geopandas as gpd
-from typing import List, Dict
+from typing import List, Dict, Union
 import random
+from shapely.geometry import mapping
+from shapely.geometry.base import BaseGeometry
+import numpy as np
+import pandas as pd
+from typing import List, Dict, Union, Optional, Tuple
+from app.services.spatial import enrich_hex_with_nearest_places
 
 
-def score_priority_zones(hex_gdf: gpd.GeoDataFrame) -> List[Dict]:
+def calculate_priority_score(hex_stats: gpd.GeoDataFrame, gap_power: float = 1.7) -> gpd.GeoDataFrame:
     """
-    Compute priority scores for observation zones
-    
-    Scoring based on:
-    1. Low observation density
-    2. High habitat diversity potential
-    3. Proximity to underrepresented taxa
-    
-    Args:
-        hex_gdf: GeoDataFrame with hex bin statistics
-        
-    Returns:
-        List of priority zones with scores
+    Formula:
+      baseline_species = non_cnc_unique_species
+      intersection     = |cnc_species_set ∩ non_cnc_species_set|
+      coverage_gap     = 1 - intersection / baseline_species
+      raw              = log1p(baseline_species) × coverage_gap ^ gap_power
+      priority_score   = minmax(log1p(raw)) scaled to [0, 100]
     """
-    # Calculate priority score
-    # Higher score = higher priority (inverse of observation count)
-    max_obs = hex_gdf['observation_count'].max()
-    
-    hex_gdf['priority_score'] = (
-        100 * (1 - (hex_gdf['observation_count'] / max_obs))
+    needed = [
+        "non_cnc_unique_species",
+        "cnc_unique_species",
+        "non_cnc_species_set",
+        "cnc_species_set",
+    ]
+    for c in needed:
+        if c not in hex_stats.columns:
+            raise ValueError(f"hex_stats missing '{c}'")
+
+    df = hex_stats.copy()
+
+    # --- base species counts ---
+    U_non_cnc = df["non_cnc_unique_species"].fillna(0).astype(float)
+
+    # --- intersection of CNC and baseline species sets ---
+    def _intersection_count(row) -> float:
+        baseline = row["non_cnc_species_set"] if isinstance(row["non_cnc_species_set"], set) else set()
+        cnc     = row["cnc_species_set"]      if isinstance(row["cnc_species_set"],      set) else set()
+        return float(len(baseline & cnc))
+
+    df["species_intersection"] = df.apply(_intersection_count, axis=1)
+
+    # --- coverage gap ---
+    df["coverage_gap"] = np.where(
+        U_non_cnc > 0,
+        1.0 - df["species_intersection"] / U_non_cnc,
+        0.0,
     )
-    
-    # Boost score for areas with high potential biodiversity yield
-    hex_gdf['priority_score'] += hex_gdf['biodiversity_yield'] * 20
-    hex_gdf['priority_score'] = hex_gdf['priority_score'].clip(0, 100)
-    
-    # Sort by priority
-    priority_zones = hex_gdf.sort_values('priority_score', ascending=False)
-    
-    return priority_zones.to_dict('records')
+    df["coverage_gap"] = df["coverage_gap"].clip(0.0, 1.0)
 
+    # --- keep cnc_ratio for frontend display ---
+    N = df.get("non_cnc_observation_count", pd.Series(0, index=df.index)).fillna(0).astype(float)
+    C = df.get("cnc_observation_count",     pd.Series(0, index=df.index)).fillna(0).astype(float)
+    total_obs = N + C
+    df["cnc_ratio"] = np.where(total_obs > 0, C / total_obs, 0.0)
 
-def generate_recommendations(priority_zones: List[Dict]) -> List[Dict]:
+    # --- raw score ---
+    raw = np.log1p(U_non_cnc) * np.power(df["coverage_gap"].values, gap_power)
+    raw = np.where(np.isfinite(raw), raw, 0.0)
+    raw = np.clip(raw, 0.0, None)
+    df["raw_priority_score"] = raw.astype(float)
+
+    # --- log transform then normalize to 0..100 ---
+    df["raw_log"] = np.log1p(df["raw_priority_score"])
+
+    min_v = float(df["raw_log"].min())
+    max_v = float(df["raw_log"].max())
+
+    df["priority_score"] = np.where(
+        max_v > min_v,
+        (df["raw_log"] - min_v) / (max_v - min_v) * 100.0,
+        0.0,
+    ).astype(float)
+
+    df["priority_score_norm"] = (df["priority_score"] / 100.0).astype(float)
+
+    return df
+
+def _compute_best_time_bucket_per_hex(
+    joined: gpd.GeoDataFrame,
+    *,
+    hex_col: str = "hex_id",
+    user_col: str = "user_id",
+    id_col: str = "id",
+    time_col: str = "time_observed_at",
+    cnc_flag_col: str = "during_competition",
+    use_non_cnc_only: bool = True,
+    min_users: int = 6,
+    min_obs: int = 30,
+) -> Dict[str, str]:
     """
-    Convert scored zones into actionable recommendations
-    
-    Args:
-        priority_zones: List of priority zone dictionaries
-        
-    Returns:
-        List of recommendation objects with timing and taxa guidance
+    Returns {hex_id: 'Morning (6–10 AM)'} for hexes where we have enough data.
+    If a hex doesn't meet thresholds, it will not appear in the dict (caller can fallback).
     """
-    recommendations = []
-    
-    times = ['Early morning (6-9 AM)', 'Late afternoon (4-7 PM)', 'Morning (9-12 PM)']
-    taxa_options = [
-        ['Birds', 'Insects'],
-        ['Plants', 'Fungi'],
-        ['Reptiles', 'Amphibians'],
-        ['Mammals', 'Birds']
+
+    # 4 buckets
+    bins = [0, 6, 10, 14, 18, 22, 24]
+    labels = [
+        "Late night (12–6 AM)",
+        "Morning (6–10 AM)",
+        "Midday (10 AM–2 PM)",
+        "Afternoon (2–6 PM)",
+        "Evening (6–10 PM)",
+        "Late night (10 PM–12 AM)",
     ]
+    df = joined.copy()
+
+    if use_non_cnc_only and cnc_flag_col in df.columns:
+        df = df[df[cnc_flag_col] == False].copy()
+
+    # parse time -> hour
+    t = pd.to_datetime(df[time_col], errors="coerce")
+    # tz-aware convert; tz-naive assume already local
+    if getattr(t.dt, "tz", None) is not None:
+        t = t.dt.tz_convert("America/Los_Angeles")
+    df["hour"] = t.dt.hour
+
+    df = df.dropna(subset=[hex_col, user_col, id_col, "hour"])
+    df["hour"] = df["hour"].astype(int)
+
+    # bucket hours
+    df["time_bucket"] = pd.cut(
+        df["hour"],
+        bins=bins,
+        labels=labels,
+        right=False,
+        include_lowest=True,
+    )
+    df = df.dropna(subset=["time_bucket"])
+
+    # aggregate per (hex, bucket)
+    agg = (
+        df.groupby([hex_col, "time_bucket"], observed=True)
+          .agg(obs=(id_col, "count"), users=(user_col, "nunique"))
+          .reset_index()
+    )
+
+    # obs/user + stabilizer
+    agg["obs_per_user"] = agg["obs"] / agg["users"].replace(0, np.nan)
+    agg["score"] = agg["obs_per_user"] * np.log1p(agg["users"])
+
+    # pick best per hex
+    best_map: Dict[str, str] = {}
+    for hid, grp in agg.groupby(hex_col, observed=True):
+        top = grp.sort_values("score", ascending=False).iloc[0]
+        if int(top["users"]) >= min_users and int(top["obs"]) >= min_obs:
+            best_map[str(hid)] = str(top["time_bucket"])
+
     
-    rationales = [
-        'Undersampled area with high biodiversity potential',
-        'Low observation density despite habitat diversity',
-        'Gap in spatial coverage, accessible location',
-        'Adjacent to known hotspots but underexplored'
-    ]
-    
-    for i, zone in enumerate(priority_zones[:10]):
-        rec = {
-            'zone_id': zone.get('hex_id', f'zone_{i}'),
-            'name': f'Priority Zone {i+1}',
-            'center_lat': zone.get('center_lat', 32.7),
-            'center_lng': zone.get('center_lng', -117.1),
-            'radius_km': 2.0,
-            'priority_score': zone.get('priority_score', 50),
-            'recommended_time': random.choice(times),
-            'target_taxa': random.choice(taxa_options),
-            'rationale': random.choice(rationales),
-            'geometry': zone.get('geometry', {})
-        }
-        recommendations.append(rec)
-    
-    return recommendations
+
+    return best_map
 
 
-def calculate_timing_efficiency(gdf: gpd.GeoDataFrame) -> List[Dict]:
+
+def generate_recommendations(
+    scored_hex_gdf: gpd.GeoDataFrame,
+    obs_gdf: gpd.GeoDataFrame,
+    top_n: int = 10,
+    *,
+    parks_gdf: gpd.GeoDataFrame,
+    cnc_flag_col: str = "during_competition",
+    iconic_col: str = "iconic_taxon_name",
+    radius_km: float = 2.0,
+) -> List[Dict]:
     """
-    Calculate efficiency scores for different time windows
+    Returns top N zones as List[Dict] matching your frontend schema.
+    target_taxa = top 2-3 iconic_taxon_name values among NON-CNC observations in that hex.
+    """
+    if scored_hex_gdf is None or len(scored_hex_gdf) == 0:
+        return []
+    if "hex_id" not in scored_hex_gdf.columns or "priority_score" not in scored_hex_gdf.columns:
+        raise ValueError("scored_hex_gdf must include 'hex_id' and 'priority_score'")
+    if obs_gdf.crs is None or scored_hex_gdf.crs is None:
+        raise ValueError("Both obs_gdf and scored_hex_gdf must have CRS set.")
+    if cnc_flag_col not in obs_gdf.columns:
+        raise ValueError(f"obs_gdf missing '{cnc_flag_col}'")
+    if iconic_col not in obs_gdf.columns:
+        raise ValueError(f"obs_gdf missing '{iconic_col}'")
+
+    # Work in 4326 for geometry + centers
+    hex_top = scored_hex_gdf.to_crs("EPSG:4326").sort_values("priority_score", ascending=False).head(top_n).reset_index(drop=True)
+
+    hex_top = enrich_hex_with_nearest_places(hex_top, greenery_gdf=parks_gdf, top_n=None) #fills each hex with top 3 closest areas
+
+
+    taxon_col = "taxon_id"  # adjust if your column name differs
+    common_col = "common_name"   # CHANGE if your column is named differently
+
+    needed_cols = [cnc_flag_col, iconic_col, common_col, "geometry", "user_id", "id", "time_observed_at"]
+    missing = [c for c in needed_cols if c not in obs_gdf.columns]
+    if missing:
+        raise ValueError(f"obs_gdf missing columns needed for common-name taxa: {missing}")
     
-    Args:
-        gdf: GeoDataFrame with observation data
+    obs = obs_gdf[needed_cols].copy().to_crs("EPSG:4326")
         
-    Returns:
-        List of timing window recommendations
-    """
-    # TODO: Implement actual temporal efficiency analysis
-    # For now, return dummy timing data
+
+    # Join obs -> top hexes only
+    joined = gpd.sjoin(
+        obs,
+        hex_top[["hex_id", "geometry"]],
+        how="inner",
+        predicate="within",
+    )
+
+    time_map = _compute_best_time_bucket_per_hex(
+    joined,
+    hex_col="hex_id",
+    user_col="user_id",
+    id_col="id",
+    time_col="time_observed_at",
+    cnc_flag_col=cnc_flag_col,
+    use_non_cnc_only=True,   # baseline timing, not event schedule timing
+    min_users=6,
+    min_obs=30,
+    )
+
+    # generic fallback if this hex is too sparse
+    GENERIC_FALLBACK = "Morning (6–10 AM)"
+
+    # Compute top iconic taxa from NON-CNC only
+    non_cnc = joined[joined[cnc_flag_col] == False].copy()
     
-    days = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday']
-    hours = [6, 7, 8, 9, 14, 15, 16, 17, 18]
+    taxa_map: Dict[str, Dict[str, List[str]]] = {}
     
-    windows = []
-    for day in days[:3]:
-        for hour in hours[:3]:
-            windows.append({
-                'day_of_week': day,
-                'hour': hour,
-                'observation_count': random.randint(50, 200),
-                'unique_species': random.randint(20, 80),
-                'efficiency_score': random.uniform(40, 95)
-            })
+    if len(non_cnc) > 0:
+        for hid, grp in non_cnc.groupby("hex_id"):
+            # Clean strings
+            grp2 = grp.copy()
     
-    return sorted(windows, key=lambda x: x['efficiency_score'], reverse=True)
+            grp2[iconic_col] = (
+                grp2[iconic_col]
+                .dropna()
+                .astype(str)
+                .str.strip()
+            )
+    
+            grp2[common_col] = (
+                grp2[common_col]
+                .dropna()
+                .astype(str)
+                .str.strip()
+            )
+    
+            # Drop rows missing either iconic group or common name
+            grp2 = grp2.dropna(subset=[iconic_col, common_col])
+            grp2 = grp2[(grp2[iconic_col] != "") & (grp2[common_col] != "")]
+            grp2 = grp2[grp2[common_col].str.lower() != "unknown"]
+    
+            if len(grp2) == 0:
+                continue
+    
+            # 1) top 3 iconic groups
+            top_groups = grp2[iconic_col].value_counts().head(3).index.tolist()
+    
+            # 2) within each group, top 5 common names (rank by unique observers to reduce spam)
+            group_to_common: Dict[str, List[str]] = {}
+            for gname in top_groups:
+                sub = grp2[grp2[iconic_col] == gname]
+    
+                top_common = (
+                    sub.groupby(common_col)["user_id"]
+                       .nunique()
+                       .sort_values(ascending=False)
+                       .head(5)
+                       .index
+                       .tolist()
+                )
+                group_to_common[str(gname)] = [str(x) for x in top_common]
+    
+            taxa_map[str(hid)] = group_to_common
+    
+
+    recs: List[Dict] = []
+    for i, row in hex_top.iterrows():
+        hid = str(row["hex_id"])
+
+        # center
+        if "center_lat" in row and "center_lng" in row and pd.notnull(row["center_lat"]) and pd.notnull(row["center_lng"]):
+            center_lat = float(row["center_lat"])
+            center_lng = float(row["center_lng"])
+        else:
+            c = row["geometry"].centroid
+            center_lat = float(c.y)
+            center_lng = float(c.x)
+
+        score = float(row["priority_score"])
+        cnc_ratio = float(row.get("cnc_ratio", 0.0))
+        non_cnc_count = int(row.get("non_cnc_observation_count", 0))
+        cnc_count = int(row.get("cnc_observation_count", 0))
+
+
+        rationale = (
+            f"High baseline activity outside CNC ({non_cnc_count} obs) but low CNC share "
+            f"({cnc_ratio:.0%}), suggesting missed mobilization potential."
+        )
+
+        recs.append({
+            "zone_id": hid,
+            "name": f"Priority Zone {i + 1}",
+            "center_lat": center_lat,
+            "center_lng": center_lng,
+            "radius_km": float(radius_km),
+            "priority_score": float(score),
+            "recommended_time": time_map.get(hid, GENERIC_FALLBACK),
+            "target_taxa": taxa_map.get(hid, {}),
+            "rationale": rationale,
+            "geometry": mapping(row["geometry"]) if row.get("geometry") is not None else {},
+            # Optional extras your cards might want:
+            "non_cnc_observation_count": non_cnc_count,
+            "cnc_observation_count": cnc_count,
+            "habitat": row.get("habitat", None),
+            "non_cnc_unique_species": int(row.get("non_cnc_unique_species", 0)),
+            "cnc_unique_species": int(row.get("cnc_unique_species", 0)),
+            "top_places": row.get("top_places") or []
+        })
+
+    return recs
+
+
+def calculate_timing_efficiency():
+
+    return [
+        {
+            "day_of_week": "Saturday",
+            "hour": 9,
+            "observation_count": 420,
+            "unique_species": 185,
+            "efficiency_score": 78.4,
+        }]

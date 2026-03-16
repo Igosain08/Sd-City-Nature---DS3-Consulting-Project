@@ -11,9 +11,6 @@ interface ChartCardProps {
   compact?: boolean;
 }
 
-/**
- * Card wrapper component for charts with consistent styling
- */
 export function ChartCard({
   title,
   subtitle,
@@ -23,8 +20,8 @@ export function ChartCard({
   compact = false,
 }: ChartCardProps) {
   return (
-    <div className={`bg-white rounded-lg shadow-md ${compact ? 'p-4' : 'p-6'}`}>
-      <div className={compact ? 'mb-2' : 'mb-4'}>
+    <div className="bg-white rounded-lg shadow-md p-6 min-w-0 overflow-hidden">
+      <div className="mb-4">
         <h3 className="text-xl font-semibold text-gray-800">{title}</h3>
         {subtitle && <p className="text-sm text-gray-600 mt-1">{subtitle}</p>}
       </div>
@@ -38,7 +35,7 @@ export function ChartCard({
         </div>
       )}
 
-      {!loading && !error && <div className={compact ? 'chart-container chart-container--compact' : 'chart-container'}>{children}</div>}
+      {!loading && !error && <div className="chart-container min-w-0">{children}</div>}
     </div>
   );
 }

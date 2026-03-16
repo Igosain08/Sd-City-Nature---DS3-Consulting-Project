@@ -1,8 +1,9 @@
 """
 Pydantic response models for API endpoints
 """
-from pydantic import BaseModel, Field
-from typing import List, Optional, Any
+from pydantic import BaseModel
+from typing import List, Optional, Any, Literal, Dict
+
 
 
 class ObservationResponse(BaseModel):
@@ -181,20 +182,6 @@ class CityTopSpeciesItem(BaseModel):
     taxon_group: str
 
 
-class PriorityZoneResponse(BaseModel):
-    """Priority observation zone recommendation"""
-    zone_id: str
-    name: str
-    center_lat: float
-    center_lng: float
-    radius_km: float
-    priority_score: float
-    recommended_time: str
-    target_taxa: List[str]
-    rationale: str
-    geometry: dict  # GeoJSON Polygon
-
-
 class TimingWindowResponse(BaseModel):
     """Optimal timing window for observations"""
     day_of_week: str
@@ -202,6 +189,50 @@ class TimingWindowResponse(BaseModel):
     observation_count: int
     unique_species: int
     efficiency_score: float
+
+
+PriorityCategory = Literal[
+    "HIGH_PRIORITY", "MEDIUM_PRIORITY", "LOW_PRIORITY", "NO_DATA", "INSUFFICIENT_DATA"
+]
+
+
+class PriorityZoneOut(BaseModel):
+    zone_id: str
+    name: Optional[str] = None
+
+    center_lat: float
+    center_lng: float
+
+    priority_score: float
+    priority_category: PriorityCategory = "NO_DATA"
+
+    non_cnc_observation_count: int = 0
+    non_cnc_unique_species: int = 0
+    non_cnc_biodiversity_yield: float = 0.0
+
+    cnc_observation_count: int = 0
+    cnc_unique_species: int = 0
+    cnc_biodiversity_yield: float = 0.0
+
+    mobilization_gap: float = 0.0
+    rationale: str = ""
+
+    recommended_time: Optional[str] = None
+    target_taxa: Optional[Dict[str, List[str]]] = None
+    radius_km: Optional[float] = None
+    recommended_actions: List[str] = []
+    
+    habitat: Optional[str] = None
+
+    
+    geometry: Any
+
+    top_places: list[dict[str, Any]] = []
+
+
+class PriorityZonesBundle(BaseModel):
+    hexes: List[PriorityZoneOut]   # map
+    top: List[PriorityZoneOut]     # cards
 
 
 # Exploratory dashboard (Page 1) response shapes

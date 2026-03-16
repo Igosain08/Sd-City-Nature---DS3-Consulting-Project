@@ -7,6 +7,7 @@ from app.config import API_PREFIX, CORS_ORIGINS
 from app.routers import exploratory, hotspots, comparison, strategy
 from app.services.data_loader import DataLoader
 
+
 # Initialize FastAPI app
 app = FastAPI(
     title="SD City Nature Challenge API",
@@ -14,10 +15,15 @@ app = FastAPI(
     version="1.0.0"
 )
 
-# Configure CORS
+# Configure CORS to allow frontend access from specified origins Aka Royce's chosen origins
+# this would change if we deploy the frontend to a different domain or hosting service
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=CORS_ORIGINS,
+    allow_origins=[
+        "http://localhost:5173",
+        "http://127.0.0.1:5173",
+    ],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],

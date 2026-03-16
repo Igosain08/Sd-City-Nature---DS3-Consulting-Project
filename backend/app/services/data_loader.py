@@ -6,6 +6,8 @@ import pandas as pd
 import geopandas as gpd
 from typing import Optional
 from pathlib import Path
+from functools import lru_cache
+import h3
 
 
 def _utc_to_local_hour(series: pd.Series, tz: str = "America/Los_Angeles") -> pd.Series:
@@ -139,6 +141,12 @@ class DataLoader:
                 crs="EPSG:4326",
             )
             print(f"DataLoader: Loaded {len(gdf):,} observations from {path}")
+
+            gdf["hex7"] = gdf.apply(
+                lambda row: h3.latlng_to_cell(row.geometry.y, row.geometry.x, 7)
+                if row.geometry is not None else None,
+                axis=1
+            )
             return gdf
 
         print("DataLoader: No cleaned_finalized_dataset found, using dummy data")
@@ -212,3 +220,11 @@ class DataLoader:
         global _cached_data
         _cached_data = DataLoader.load_observations()
         print(f"Loaded {len(_cached_data)} observations into cache")
+        
+    
+
+    # app/services/data_loader.py
+
+# app/services/data_loader.py
+
+   
